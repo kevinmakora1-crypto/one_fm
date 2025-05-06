@@ -35,7 +35,8 @@
   {
    "fieldname": "blocker_details",
    "fieldtype": "Small Text",
-   "label": "Blocker Details"
+   "label": "Blocker Details",
+   "reqd": 1
   },
   {
    "fieldname": "column_break_wjqy",
@@ -64,7 +65,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-04-30 18:49:21.939017",
+ "modified": "2025-05-06 14:53:10.621147",
  "modified_by": "Administrator",
  "module": "One Fm",
  "name": "Blocker",
