@@ -100,3 +100,23 @@ def do_assignment(self, doc):
         return True
 
     return False
+
+def get_user_based_on_process_task(self):
+    """
+    Fetch the employee user assigned to process task
+    """
+    process_task_user = frappe.db.get_value('Process Task', { 'name': self.custom_routine_task }, 'employee_user')
+    return process_task_user
+
+def get_user(self, doc):
+    """
+	Get the next user for assignment
+	"""
+    if self.rule == "Round Robin":
+        return self.get_user_round_robin()
+    elif self.rule == "Load Balancing":
+        return self.get_user_load_balancing()
+    elif self.rule == "Based on Field":
+        return self.get_user_based_on_field(doc)
+    elif self.rule == "Based on Process Task":
+        return self.get_user_based_on_process_task()

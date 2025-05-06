@@ -9,20 +9,19 @@
  "engine": "InnoDB",
  "field_order": [
   "naming_series",
-  "employee",
-  "column_break_ecn7a",
-  "employee_name",
-  "employee_user",
-  "column_break_pwlz",
-  "department",
   "process_section",
   "process_name",
-  "is_erp_process",
+  "is_erp_task",
+  "is_automated",
+  "is_active",
   "erp_document",
   "task",
   "task_type",
+  "method",
   "column_break_im0w3",
   "frequency",
+  "cron_format",
+  "last_execution",
   "repeat_on_day",
   "repeat_on_last_day",
   "repeat_on_days",
@@ -33,6 +32,13 @@
   "start_date",
   "end_date",
   "remark",
+  "employee_section",
+  "employee",
+  "column_break_ecn7a",
+  "employee_name",
+  "employee_user",
+  "column_break_pwlz",
+  "department",
   "reporting_section",
   "report_frequency",
   "direct_report_reviewer",
@@ -52,19 +58,11 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Process",
-   "options": "Routine Task Process",
+   "options": "Process",
    "reqd": 1
   },
   {
-   "default": "0",
-   "fetch_from": "process_name.is_erp_process",
-   "fieldname": "is_erp_process",
-   "fieldtype": "Check",
-   "label": "Is ERP Process",
-   "read_only": 1
-  },
-  {
-   "depends_on": "is_erp_process",
+   "depends_on": "is_erp_task",
    "fieldname": "erp_document",
    "fieldtype": "Link",
    "label": "ERP Document",
@@ -82,7 +80,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Frequency",
-   "options": "\nDaily\nWeekly\nMonthly",
+   "options": "\nDaily\nWeekly\nMonthly\nCron",
    "reqd": 1
   },
   {
@@ -99,8 +97,8 @@
    "in_filter": 1,
    "in_standard_filter": 1,
    "label": "Employee",
-   "options": "Employee",
-   "reqd": 1
+   "mandatory_depends_on": "eval:!doc.process_name",
+   "options": "Employee"
   },
   {
    "fetch_from": "employee.employee_name",
@@ -195,7 +193,7 @@
    "fieldtype": "Select",
    "hidden": 1,
    "label": "Series",
-   "options": "R-TASK-.YYYY.-"
+   "options": "P-TASK-.YYYY.-"
   },
   {
    "collapsible": 1,
@@ -271,14 +269,61 @@
   {
    "fieldname": "column_break_pwlz",
    "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "description": "Mark if this process task is developed on ERPNext and select the doctype below",
+   "fieldname": "is_erp_task",
+   "fieldtype": "Check",
+   "label": "Is ERP Task"
+  },
+  {
+   "fieldname": "employee_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "default": "0",
+   "description": "Mark if this process task is fully automated, not requiring an operator to execute.",
+   "fieldname": "is_automated",
+   "fieldtype": "Check",
+   "label": "Is Automated"
+  },
+  {
+   "default": "0",
+   "description": "Mark if this task should be executed between the start date and end date.",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Enabled"
+  },
+  {
+   "fieldname": "method",
+   "fieldtype": "Link",
+   "label": "Method",
+   "mandatory_depends_on": "eval: doc.is_automated && doc.is_erp_task",
+   "options": "Method"
+  },
+  {
+   "depends_on": "eval:doc.frequency==='Cron'",
+   "description": "To learn more about Cron formats, click the \"?\" above.\n<pre>*  *  *  *  *\n\u252c  \u252c  \u252c  \u252c  \u252c\n\u2502  \u2502  \u2502  \u2502  \u2502\n\u2502  \u2502  \u2502  \u2502  \u2514 day of week (0 - 6) (0 is Sunday)\n\u2502  \u2502  \u2502  \u2514\u2500\u2500\u2500\u2500\u2500 month (1 - 12)\n\u2502  \u2502  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 day of month (1 - 31)\n\u2502  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 hour (0 - 23)\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 minute (0 - 59)\n\n---\n\n* - Any value\n/ - Step values\n</pre>",
+   "documentation_url": "https://crontab.guru/",
+   "fieldname": "cron_format",
+   "fieldtype": "Data",
+   "label": "Cron Format"
+  },
+  {
+   "depends_on": "eval:doc.frequency==='Cron'",
+   "fieldname": "last_execution",
+   "fieldtype": "Datetime",
+   "label": "Last Execution",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-07-30 13:09:50.100169",
+ "modified": "2025-04-23 19:06:24.431325",
  "modified_by": "Administrator",
  "module": "Operations",
- "name": "Routine Task",
+ "name": "Process Task",
  "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
