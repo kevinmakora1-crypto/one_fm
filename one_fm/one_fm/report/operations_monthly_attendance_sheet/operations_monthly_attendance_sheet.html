@@ -135,6 +135,8 @@
 } %}
 {% var pages = chunk(data, CHUNK_SIZE); %}
 
+{% var dateWiseDutyStaff = {} %}
+
 <div>
   {% for (var p = 0; p < pages.length; p++) { %}
     <div class="attendance-page">
@@ -193,6 +195,9 @@
             {% for (var j = 0; j < monthDays.length; j++) { %}
               {% var status = row[monthDays[j].date]; %}
               <td class="{{ status ? "" : "empty-attendance-cell" }}">{{ status == "CDO" ? "DO" : status }}</td>
+              {% if (status == "P") { %}
+                {% dateWiseDutyStaff[monthDays[j].date] = (dateWiseDutyStaff[monthDays[j].date] || 0) + 1 %}
+              {% } %}
             {% } %}
             <td colspan="2">{{ row.working_days }}</td>
             <td>{{ row.off_days }}</td>
@@ -204,7 +209,7 @@
           <tr class="staff-duty">
             <th colspan="{{ empIdColSpan + empNameColSpan + shiftColSpan + 1 }}">No. of Staff on Duty</th>
             {% for (var n = 0; n < monthDays.length; n++) { %}
-              <td>{{ data.reduce((count, att) => att[monthDays[n].date.toString()] === 'P' ? count + 1 : count, 0) }}</td>
+              <td>{{ dateWiseDutyStaff[monthDays[n].date] || 0 }}</td>
             {% } %}
             <td colspan="2">{{ data.reduce((acc, rec) => acc + (rec.working_days || 0), 0) }}</td>
             <td>{{ data.reduce((acc, rec) => acc + (rec.off_days || 0), 0) }}</td>
