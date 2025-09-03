@@ -85,12 +85,12 @@ def get_custom_user_permissions(user=None):
 
 	# Get doctypes to ignore from User Permissions
 	user_roles = frappe.get_roles(user)
-	doc_access_roles = frappe.get_all("ONEFM Document Access Roles Detail", {'parent':"ONEFM General Setting",'parentfield':"document_access_roles"},['role', 'doctype'])
+	doc_access_roles = frappe.get_all("Document Access Role Detail", {'parent':"ONEFM General Setting",'parentfield':"document_access_roles"},['role', 'doc_type'])
 
 	ignore_doctypes_for_user_perm = []
 	for r in doc_access_roles:
 		if r.role in user_roles:
-			ignore_doctypes_for_user_perm.append(r.doctype)
+			ignore_doctypes_for_user_perm.append(r.doc_type)
 
 	out = {}
 
@@ -110,7 +110,9 @@ def get_custom_user_permissions(user=None):
 	try:
 		user_perm_filters = dict(user=user)
 		if ignore_doctypes_for_user_perm:
-			user_perm_filters['allow'] = ['not in', ignore_doctypes_for_user_perm]
+			# check if the doctype is Employee, then waive the permission
+			if "Employee" in ignore_doctypes_for_user_perm:
+				user_perm_filters['allow'] = ['not in', ["Employee"]]
 
 		for perm in frappe.get_all(
 			"User Permission",
@@ -745,11 +747,11 @@ def custom_permission_query_conditions(doctype, user):
     if user == "Administrator":
         return ""
 
-    roles = frappe.get_all("ONEFM Document Access Roles Detail", {'parent':"ONEFM General Setting",'parentfield':"document_access_roles"},['role', 'doctype'])
+    roles = frappe.get_all("Document Access Role Detail", {'parent':"ONEFM General Setting",'parentfield':"document_access_roles"},['role', 'doc_type'])
 
     has_roles = False
     for r in roles:
-        if r.role in frappe.get_roles(user) and r.doctype == doctype:
+        if r.role in frappe.get_roles(user) and r.doc_type == doctype:
             has_roles = True
             break
 

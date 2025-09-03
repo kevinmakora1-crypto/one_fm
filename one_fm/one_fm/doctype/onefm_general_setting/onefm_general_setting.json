@@ -75,14 +75,14 @@
    "fieldname": "document_access_roles",
    "fieldtype": "Table",
    "label": "Document Access Roles",
-   "options": "ONEFM Document Access Roles Detail"
+   "options": "Document Access Role Detail"
   },
   {
    "description": "Table of roles allowed to edit  and create new wiki pages",
    "fieldname": "wiki_page_access",
    "fieldtype": "Table",
    "label": "Wiki Page Access",
-   "options": "ONEFM Document Access Roles Detail"
+   "options": "Document Access Role Detail"
   },
   {
    "collapsible": 1,
@@ -108,7 +108,7 @@
    "fieldname": "employee_master_role",
    "fieldtype": "Table",
    "label": "Employee Master Role",
-   "options": "ONEFM Document Access Roles Detail"
+   "options": "Document Access Role Detail"
   },
   {
    "fieldname": "column_break_xyl05",
@@ -164,7 +164,7 @@
    "fieldname": "employee_info_access",
    "fieldtype": "Table",
    "label": "Employee Info Access",
-   "options": "ONEFM Document Access Roles Detail"
+   "options": "Document Access Role Detail"
   },
   {
    "default": "0",

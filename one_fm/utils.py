@@ -3277,11 +3277,11 @@ def check_employee_permission_on_doc(doc):
         if frappe.session.user not in ["Administrator", 'administrator']:
             session_employee = frappe.cache().get_value(frappe.session.user).employee
 
-            roles = frappe.get_all("ONEFM Document Access Roles Detail", {'parent':"ONEFM General Setting",'parentfield':"document_access_roles"},['role', 'doctype'])
+            roles = frappe.get_all("Document Access Role Detail", {'parent':"ONEFM General Setting",'parentfield':"document_access_roles"},['role', 'doc_type'])
 
             has_roles = False
             for r in roles:
-                if r.role in frappe.get_roles() and r.doctype == doc.doctype:
+                if r.role in frappe.get_roles() and r.doc_type == doc.doctype:
                     has_roles = True
                     break
 
