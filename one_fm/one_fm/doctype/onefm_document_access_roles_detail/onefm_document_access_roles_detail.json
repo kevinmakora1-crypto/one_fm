@@ -6,7 +6,8 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "role"
+  "role",
+  "doctype"
  ],
  "fields": [
   {
@@ -15,6 +16,14 @@
    "in_list_view": 1,
    "label": "Role",
    "options": "Role",
+   "reqd": 1
+  },
+  {
+   "fieldname": "doctype",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "DocType",
+   "options": "DocType",
    "reqd": 1
   }
  ],

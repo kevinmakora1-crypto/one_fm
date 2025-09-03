@@ -723,3 +723,24 @@ def warehouse_list(user):
         if session_user_employee:
             return "`tabWarehouse`.`one_fm_store_keeper` = '{0}'".format(session_user_employee)
     return ""
+
+
+def custom_permission_query_conditions(doctype, user):
+    if not user:
+        user = frappe.session.user
+
+    if user == "Administrator":
+        return ""
+
+    roles = frappe.get_all("ONEFM Document Access Roles Detail", {'parent':"ONEFM General Setting",'parentfield':"document_access_roles"},['role', 'doctype'])
+
+    has_roles = False
+    for r in roles:
+        if r.role in frappe.get_roles(user) and r.doctype == doctype:
+            has_roles = True
+            break
+
+    if has_roles:
+        return ""
+
+    return None

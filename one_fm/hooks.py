@@ -190,6 +190,7 @@ after_install = "one_fm.setup.setup.after_install"
 # ---------------
 # Hook on document methods and events
 permission_query_conditions = {
+    "Default": "one_fm.permissions.custom_permission_query_conditions",
 	"Penalty": "one_fm.legal.doctype.penalty.penalty.get_permission_query_conditions",
 	"Penalty Issuance": "one_fm.legal.doctype.penalty_issuance.penalty_issuance.get_permission_query_conditions",
 	"Issue": "one_fm.utils.get_issue_permission_query_conditions",
