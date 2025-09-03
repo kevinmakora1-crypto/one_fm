@@ -83,6 +83,15 @@ def get_custom_user_permissions(user=None):
 	if cached_user_permissions is not None:
 		return cached_user_permissions
 
+	# Get doctypes to ignore from User Permissions
+	user_roles = frappe.get_roles(user)
+	doc_access_roles = frappe.get_all("ONEFM Document Access Roles Detail", {'parent':"ONEFM General Setting",'parentfield':"document_access_roles"},['role', 'doctype'])
+
+	ignore_doctypes_for_user_perm = []
+	for r in doc_access_roles:
+		if r.role in user_roles:
+			ignore_doctypes_for_user_perm.append(r.doctype)
+
 	out = {}
 
 	def add_doc_to_perm(perm, doc_name, is_default):
@@ -99,10 +108,14 @@ def get_custom_user_permissions(user=None):
 		)
 
 	try:
+		user_perm_filters = dict(user=user)
+		if ignore_doctypes_for_user_perm:
+			user_perm_filters['allow'] = ['not in', ignore_doctypes_for_user_perm]
+
 		for perm in frappe.get_all(
 			"User Permission",
 			fields=["allow", "for_value", "applicable_for", "is_default", "hide_descendants"],
-			filters=dict(user=user),
+			filters=user_perm_filters,
 		):
 
 			meta = frappe.get_meta(perm.allow)
