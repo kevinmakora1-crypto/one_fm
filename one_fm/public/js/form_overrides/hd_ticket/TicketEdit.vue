@@ -1,7 +1,5 @@
 <template>
   <div class="flex h-screen overflow-hidden">
-    <!-- Sidebar -->
-    <Sidebar class="w-64 shrink-0 border-r h-full overflow-y-auto" />
 
     <!-- Main content -->
     <div class="flex flex-col flex-1 h-full overflow-hidden">
@@ -207,6 +205,21 @@ async function fetchTicketDetails() {
 
 
 async function handleSubmit() {
+  if (!templateFields.priority) {
+    $dialog({
+      title: "Missing Priority",
+      message: "Priority is required.",
+    });
+    return;
+  }
+  if (!templateFields.process) {
+    $dialog({
+      title: "Missing Process",
+      message: "Process is required.",
+    });
+    return;
+  }
+
   loading.value = true;
   try {
     await call("one_fm.overrides.hd_ticket.update_ticket", {
@@ -215,6 +228,7 @@ async function handleSubmit() {
         subject: subject.value,
         description: description.value,
         ...templateFields,
+        custom_process: templateFields.process,
       }),
     });
     router.push("/");
@@ -255,8 +269,8 @@ onMounted(async () => {
   await fetchTicketDetails();
 
   injectFallbackFields();
-  applyFilters("priority");
-  applyFilters("process");
+  // applyFilters("priority");
+  // applyFilters("process");
 });
 
 </script>

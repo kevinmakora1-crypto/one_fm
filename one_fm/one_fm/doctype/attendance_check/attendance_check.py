@@ -632,7 +632,8 @@ def assign_attendance_manager(pending_approval_attendance_checks):
         existing_todos = fetch_existing_todos(attendance_manager_user)
         filtered_pending_approval_attendance_check = [i for i in pending_approval_attendance_checks if i.name not in existing_todos ]
         create_todos(attendance_manager_user,filtered_pending_approval_attendance_check)
-        notify_manager(attendance_manager_user)
+        if filtered_pending_approval_attendance_check:
+            notify_manager(attendance_manager_user)
 
 
 def schedule_attendance_check():

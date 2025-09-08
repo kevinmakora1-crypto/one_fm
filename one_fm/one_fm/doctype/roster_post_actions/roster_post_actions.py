@@ -15,7 +15,17 @@ from frappe.permissions import get_doctype_roles
 from one_fm.one_fm.page.roster.roster import get_current_user_details
 
 class RosterPostActions(Document):
-    pass
+    def after_insert(self):
+        # send notification to supervisor
+        user_id = frappe.db.get_value("Employee", self.supervisor, ["user_id"])
+        if user_id:
+            link = get_link_to_form(self.doctype, self.name)
+            subject = _("New Action Required")
+            message = _("""
+				You have been issued a Roster Post Action.<br>
+				Please review the Post Type for the specified date in the roster, take necessary actions and update the status.<br>
+				Link: {link}""".format(link=link))
+            sendemail([user_id], subject=subject, message=message, reference_doctype=self.doctype, reference_name=self.name)
 
 
 

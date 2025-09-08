@@ -9,13 +9,11 @@ def execute():
     frappe.log_error("Leave Policy Patch Started", "Leave Policy")
     today_date = getdate(today())
 
-    # Get all active employees
     active_employees = frappe.get_all("Employee", filters={"status": "Active"}, pluck="name")
 
     if not active_employees:
         return
 
-    # Get the latest leave policy assignment for each active employee
     latest_assignments = frappe.db.sql("""
         SELECT
             lpa.name,
@@ -32,7 +30,6 @@ def execute():
             lpa.employee, lpa.effective_to DESC
     """, {"employees": active_employees}, as_dict=1)
 
-    # Use a dictionary to store the latest assignment for each employee
     latest_assignment_map = {}
     for assignment in latest_assignments:
         if assignment.employee not in latest_assignment_map:
@@ -42,14 +39,24 @@ def execute():
         try:
             effective_to = getdate(doc.effective_to)
 
-            # Check if the latest assignment has expired
             if effective_to < today_date:
-                # Loop to create new assignments until the effective_to date is in the future
                 while effective_to < today_date:
                     effective_from = add_days(effective_to, 1)
                     new_effective_to = add_days(add_years(effective_from, 1), -1)
 
-                    # Check if an assignment for this period already exists
+                    # Check for future carry-forward leave allocations
+                    leave_types = frappe.get_all("Leave Policy Detail", filters={"parent": doc.leave_policy}, pluck="leave_type")
+                    if leave_types:
+                        future_allocation_exists = frappe.db.exists("Leave Allocation", {
+                            "employee": doc.employee,
+                            "leave_type": ("in", leave_types),
+                            "from_date": (">", new_effective_to),
+                            "docstatus": 1,
+                            "carry_forward": 1
+                        })
+                        if future_allocation_exists:
+                            break
+
                     if not frappe.db.exists("Leave Policy Assignment", {
                         "employee": doc.employee,
                         "effective_from": effective_from,
@@ -67,7 +74,6 @@ def execute():
                         leave_policy_assignment.submit()
                         frappe.log_error(f"Created new Leave Policy Assignment for {doc.employee} from {effective_from} to {new_effective_to}", "Leave Policy")
 
-                    # Update effective_to for the next iteration
                     effective_to = new_effective_to
 
         except Exception as e:

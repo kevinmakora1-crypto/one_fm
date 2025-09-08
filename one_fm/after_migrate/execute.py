@@ -266,7 +266,7 @@ def append_code_in_file(file_path, search_text, appendable_code, insert_before_s
         return False
 
 def update_hd_ticket_agent():
-    FILE_PATH = frappe.utils.get_bench_path()+'/apps/helpdesk/desk/src/pages/TicketAgent.vue'
+    FILE_PATH = frappe.utils.get_bench_path()+'/apps/helpdesk/desk/src/pages/ticket/TicketAgent.vue'
     if (os.path.exists(FILE_PATH)):
         # Append lines before 'const showSubjectDialog = ref(false);'
         search_text = 'const showSubjectDialog = ref(false);'
@@ -296,31 +296,17 @@ def update_hd_ticket_agent():
                 onSuccess: (data) => {
                     showStoryCreationProgressDialog.value = false;
                     if (data.error){
-                    createToast({
-                      title: "Dev Ticket Error",
-                      text: data.message || "Something went wrong in creating dev ticket",
-                      icon: "x",
-                      iconClasses: "text-red-600",
-                    });
+                    toast.error(data.message || "Something went wrong in creating dev ticket")
                   } else if (data.status == 'success' ) {
 
-                    createToast({
-                      title: "Dev ticket created successfully",
-                      icon: "check",
-                      iconClasses: "text-green-600",
-                    });
+                    toast.success("Dev ticket created successfully")
 
                   }
                     ticket.reload();
                 },
                 onError: (error) => {
                     showStoryCreationProgressDialog.value = false;
-                    createToast({
-                    title: 'Dev Ticket Error',
-                    text: error.message || "Something went wrong in creating dev ticket",
-                    icon: "x",
-                    iconClasses: "text-red-600",
-                  });
+                    toast.error(error.message || "Something went wrong in creating dev ticket")
                 },
                 });
             }
@@ -424,7 +410,7 @@ def update_hd_ticket_agent():
 
 
 def add_resolution_details_updation():
-    FILE_PATH = frappe.utils.get_bench_path()+'/apps/helpdesk/desk/src/pages/TicketAgent.vue'
+    FILE_PATH = frappe.utils.get_bench_path()+'/apps/helpdesk/desk/src/pages/ticket/TicketAgent.vue'
     if (os.path.exists(FILE_PATH)):
         # Append lines before '} from "frappe-ui";' to import TextEditor
         search_text = '} from "frappe-ui";'
@@ -631,7 +617,7 @@ def update_all_ticket_features():
         bench_path = frappe.utils.get_bench_path()
         helpdesk_dir = os.path.join(bench_path, 'apps/helpdesk/desk')
 
-        run_command("yarn build", cwd=helpdesk_dir)
+        run_command("NODE_OPTIONS=\"--max-old-space-size=4096\" yarn build", cwd=helpdesk_dir)
         run_command("bench restart", cwd=bench_path)
     else:
         print("No changes detected. Skipping build and restart.")

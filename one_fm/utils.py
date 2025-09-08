@@ -13,6 +13,7 @@ import frappe
 from frappe import _
 from frappe.auth import validate_ip_address
 from frappe.utils.nestedset import validate_loop
+from frappe.query_builder import DocType
 from frappe.desk.form.assign_to import add as add_assignment
 from frappe.desk.notifications import extract_mentions
 from frappe.desk.doctype.notification_log.notification_log import get_title, get_title_html
@@ -4313,3 +4314,95 @@ def send_absences_notification(absent_employees):
         notification.document_name = notification.name
         notification.save(ignore_permissions=True)
         frappe.db.commit()
+
+
+def send_enrollment_status():
+	"""
+	Sends a daily email to site supervisors with a list of employees who are not enrolled in face recognition.
+	"""
+	Employee = DocType("Employee")
+
+	# Fetch employees who are not enrolled
+	employees = (
+		frappe.qb.from_(Employee)
+		.select(
+			Employee.name,
+			Employee.employee_id,
+			Employee.employee_name,
+			Employee.site,
+			Employee.department,
+			Employee.date_of_joining
+		)
+		.where(
+			(Employee.status == "Active") &
+			(Employee.attendance_by_timesheet != 1) &
+			(Employee.auto_attendance == 0) &
+			(Employee.enrolled == 0) &
+			(Employee.site.isnotnull()) &
+			(Employee.date_of_joining <= today())
+		)
+	).run(as_dict=True)
+
+	if not employees:
+		return
+
+	# Group employees by supervisor
+	supervisors = {}
+	for emp in employees:
+		if not emp.site:
+			continue
+
+		site_details = frappe.get_value(
+			"Operations Site",
+			emp.site,
+			["account_supervisor", "account_supervisor_name"],
+			as_dict=True
+		)
+
+		if not site_details or not site_details.account_supervisor:
+			continue
+
+		supervisor_id = site_details.account_supervisor
+		supervisor_name = site_details.account_supervisor_name
+
+		supervisor_email = frappe.get_value("Employee", supervisor_id, "user_id")
+
+		if not supervisor_email:
+			continue
+
+		if supervisor_email not in supervisors:
+			supervisors[supervisor_email] = {
+				"name": supervisor_name or frappe.get_value("Employee", supervisor_id, "employee_name"),
+				"employees": [],
+				"sites": set()
+			}
+
+		supervisors[supervisor_email]["employees"].append(emp)
+		supervisors[supervisor_email]["sites"].add(emp.site)
+
+	# Send emails
+	for email, data in supervisors.items():
+		supervisor_name = data["name"]
+		employee_list = data["employees"]
+		sites = data["sites"]
+
+		subject = _("Pending Face Recognition Enrollment for site(s): {0}").format(", ".join(sites))
+
+		message = frappe.render_template(
+			"one_fm/templates/emails/enrollment_status_notification.html",
+			{
+				"doc": {
+					"supervisor_name": supervisor_name,
+					"employees": employee_list
+				}
+			}
+		)
+
+		frappe.enqueue(
+			sendemail,
+			recipients=[email],
+			subject=subject,
+			content=message,
+			delayed=False,
+			is_scheduler_email=True
+		)
