@@ -153,3 +153,4 @@ one_fm.patches.v15_0.add_github_issue_url_in_hd_ticket
 one_fm.patches.v15_0.create_attendance_check_process_task #re run again
 one_fm.patches.v15_0.add_task_assignment_rule
 one_fm.patches.v15_0.attendance_check_create
+one_fm.patches.v15_0.update_expired_leave_policy_assignments
