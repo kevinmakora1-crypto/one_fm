@@ -1,0 +1,25 @@
+<p>Dear {{ doc.supervisor_name }},</p>
+<p>Good day. The following employees under your supervision have not yet been enrolled in the Face Recognition System.
+Please take necessary action to ensure timely enrollment.</p>
+<table border="1" style="border-collapse: collapse; width: 100%;">
+    <thead>
+        <tr style="background-color: #f2f2f2;">
+            <th style="padding: 8px; text-align: left;">Employee ID</th>
+            <th style="padding: 8px; text-align: left;">Employee Name</th>
+            <th style="padding: 8px; text-align: left;">Department</th>
+            <th style="padding: 8px; text-align: left;">Date of Joining</th>
+            <th style="padding: 8px; text-align: left;">Site</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for emp in doc.employees %}
+        <tr>
+            <td style="padding: 8px;">{{ emp.employee_id }}</td>
+            <td style="padding: 8px;">{{ emp.employee_name }}</td>
+            <td style="padding: 8px;">{{ emp.department }}</td>
+            <td style="padding: 8px;">{{ frappe.utils.formatdate(emp.date_of_joining) }}</td>
+            <td style="padding: 8px;">{{ emp.site }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
