@@ -1,5 +1,4 @@
 import frappe
-from frappe import _
 
 def execute():
     """
@@ -17,7 +16,7 @@ def execute():
     )
 
     if not attendance_checks:
-        frappe.msgprint(_("No pending Attendance Check records found for the specified dates."))
+        print("No pending Attendance Check records found for the specified dates.")
         return
 
     approved_count = 0
@@ -33,4 +32,4 @@ def execute():
         except Exception:
             frappe.log_error(title=f"Failed to approve Attendance Check {ac.name}", message=frappe.get_traceback())
 
-    frappe.msgprint(_(f"Approved {approved_count} Attendance Check records for 10, 11, and 12 September 2025."))
+    print(f"Approved {approved_count} Attendance Check records for 10, 11, and 12 September 2025.")
