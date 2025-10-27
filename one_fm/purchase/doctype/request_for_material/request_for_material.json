@@ -111,7 +111,6 @@
    "default": "Draft",
    "fieldname": "status",
    "fieldtype": "Select",
-   "hidden": 1,
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Status",
@@ -527,9 +526,14 @@
    "group": "Purchase RFM",
    "link_doctype": "Request for Material",
    "link_fieldname": "issue_transfer_rfm"
+  },
+  {
+   "group": "Reference",
+   "link_doctype": "Employee Uniform",
+   "link_fieldname": "linked_rfm"
   }
  ],
- "modified": "2025-10-12 22:01:20.979114",
+ "modified": "2025-10-19 10:49:31.543490",
  "modified_by": "Administrator",
  "module": "Purchase",
  "name": "Request for Material",

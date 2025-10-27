@@ -38,10 +38,7 @@
   "column_break_29",
   "upload_payment_invoice_on",
   "work_permit_information_section",
-  "upload_work_permit",
   "new_work_permit_expiry_date",
-  "column_break_32",
-  "upload_work_permit_on",
   "pam_work_permit_registration_section",
   "reference_number_on_pam_registration",
   "work_permit_registration",
@@ -97,9 +94,9 @@
   "iqrar",
   "new_passport_details_section",
   "new_passport_type",
-  "column_break_yjma",
   "new_passport_number",
-  "column_break_jgpb",
+  "column_break_yjma",
+  "new_passport_issuance_date",
   "new_passport_expiry_date",
   "documents_required_section",
   "documents_required",
@@ -384,10 +381,6 @@
    "permlevel": 1
   },
   {
-   "fieldname": "column_break_32",
-   "fieldtype": "Column Break"
-  },
-  {
    "allow_on_submit": 1,
    "fieldname": "attach_invoice",
    "fieldtype": "Attach",
@@ -405,13 +398,6 @@
    "hidden": 1,
    "label": "Work Permit Approved",
    "options": "\nYes\nNo"
-  },
-  {
-   "allow_on_submit": 1,
-   "depends_on": "eval:doc.workflow_state=='Pending By PAM' || doc.workflow_state=='Pending By Operator'",
-   "fieldname": "upload_work_permit",
-   "fieldtype": "Attach",
-   "label": "Upload Work Permit"
   },
   {
    "allow_on_submit": 1,
@@ -452,13 +438,6 @@
    "options": "User",
    "print_hide": 1,
    "read_only": 1
-  },
-  {
-   "allow_on_submit": 1,
-   "depends_on": "eval:doc.workflow_state=='Pending By PAM' || doc.workflow_state=='Pending By Operator'",
-   "fieldname": "upload_work_permit_on",
-   "fieldtype": "Data",
-   "label": "Upload On"
   },
   {
    "allow_on_submit": 1,
@@ -920,13 +899,14 @@
    "fieldtype": "Column Break"
   },
   {
+   "fieldname": "new_passport_issuance_date",
+   "fieldtype": "Date",
+   "label": "Passport Issuance Date"
+  },
+  {
    "fieldname": "new_passport_number",
    "fieldtype": "Data",
    "label": "Passport Number"
-  },
-  {
-   "fieldname": "column_break_jgpb",
-   "fieldtype": "Column Break"
   },
   {
    "fieldname": "new_passport_expiry_date",
@@ -991,7 +971,7 @@
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2025-10-14 11:59:26.763332",
+ "modified": "2025-10-25 21:14:09.876478",
  "modified_by": "Administrator",
  "module": "GRD",
  "name": "Work Permit",
@@ -1057,6 +1037,7 @@
    "write": 1
   }
  ],
+ "row_format": "Dynamic",
  "search_fields": "date_of_application,employee_id,civil_id",
  "sort_field": "date_of_application",
  "sort_order": "DESC",

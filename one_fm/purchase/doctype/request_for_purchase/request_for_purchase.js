@@ -5,6 +5,9 @@ frappe.ui.form.on('Request for Purchase', {
 	refresh: function(frm) {
 		set_intro_related_to_status(frm);
 		frm.events.make_custom_buttons(frm);
+		update_currency_labels(frm);
+		toggle_base_currency_columns(frm);
+		update_total_labels(frm);
 
 		
 
@@ -15,7 +18,30 @@ frappe.ui.form.on('Request for Purchase', {
 			if (frm.fields_dict["items_to_order"] && frm.fields_dict["items_to_order"].grid) {
 				frm.fields_dict["items_to_order"].grid.update_docfield_property("qty", "read_only", 1);
 			}
+
 		}
+
+		if (frm.doc.status && frm.doc.docstatus === 1) {
+				const status_colors = {
+					"Draft": "grey",
+					"Draft Request": "grey",
+					"Accepted": "blue",
+					"Approved": "blue",
+					"To Order": "orange",
+					"Partially Ordered": "yellow",
+					"Ordered": "green",
+					"Rejected": "red",
+					"Submitted": "blue",
+					"Cancelled": "red"
+				};
+				
+				const color = status_colors[frm.doc.status] || "grey";
+				
+				frm.page.clear_indicator();
+				
+				frm.page.set_indicator(frm.doc.status, color);
+			}
+
 	},
 	make_custom_buttons: function(frm) {
 		if (frm.doc.docstatus == 1 && frappe.user.has_role('Purchase Officer')){
@@ -335,6 +361,9 @@ frappe.ui.form.on('Request for Purchase', {
 			frm.set_df_property('exchange_rate', 'read_only', 0);
 			return;
 		}
+		update_currency_labels(frm);
+		toggle_base_currency_columns(frm);
+		update_total_labels(frm);
 
 		let to_currency = frm.doc.currency;
 		// If same currency set 1 and make read only
@@ -394,8 +423,19 @@ frappe.ui.form.on('Request for Purchase', {
 				}
 			}
 		});
-	}
+
+
+	},
+	onload: function(frm) {
+        update_currency_labels(frm);
+		toggle_base_currency_columns(frm);
+		update_total_labels(frm);
+    },
+	exchange_rate: function(frm) {
+        recalculate_all_items(frm);
+    },
 });
+
 
 
 function clear_all_overlays() {
@@ -529,3 +569,134 @@ var set_supplier_to_items_to_order = function(frm){
 		frm.refresh_field('items_to_order');
 	}
 };
+
+function update_currency_labels(frm) {
+    let currency = frm.doc.currency || frm.doc.company_currency || 'KWD';
+    
+    frm.fields_dict['items_to_order'].grid.update_docfield_property(
+        'rate',
+        'label',
+        __('Rate ({0})', [currency])
+    );
+    
+    frm.fields_dict['items_to_order'].grid.update_docfield_property(
+        'amount',
+        'label',
+        __('Amount ({0})', [currency])
+    );
+    
+    frm.refresh_field('items_to_order');
+}
+
+function update_total_labels(frm) {
+    let company_currency = frm.doc.company_currency || 'KWD';
+    
+    frm.set_df_property('base_total', 'label', __('Total ({0})', [company_currency]));
+}
+
+
+function toggle_base_currency_columns(frm) {
+    let show_base_currency = frm.doc.currency && frm.doc.currency !== frm.doc.company_currency;
+    let company_currency = frm.doc.company_currency || 'KWD';
+    
+
+    frm.fields_dict['items_to_order'].grid.update_docfield_property(
+        'base_rate',
+        'label',
+        __('Rate ({0})', [company_currency])
+    );
+    
+    frm.fields_dict['items_to_order'].grid.update_docfield_property(
+        'base_amount',
+        'label',
+        __('Amount ({0})', [company_currency])
+    );
+
+    frm.fields_dict['items_to_order'].grid.update_docfield_property(
+        'base_rate',
+        'in_list_view',
+        show_base_currency ? 1 : 0
+    );
+    
+    frm.fields_dict['items_to_order'].grid.update_docfield_property(
+        'base_amount',
+        'in_list_view',
+        show_base_currency ? 1 : 0
+    );
+	
+    if (show_base_currency) {
+        frm.fields_dict['items_to_order'].grid.update_docfield_property('item_name', 'columns', 1);
+        frm.fields_dict['items_to_order'].grid.update_docfield_property('item_code', 'columns', 1);
+        frm.fields_dict['items_to_order'].grid.update_docfield_property('qty', 'columns', 1);
+        frm.fields_dict['items_to_order'].grid.update_docfield_property('rate', 'columns', 1);
+        frm.fields_dict['items_to_order'].grid.update_docfield_property('amount', 'columns', 1);
+    } else {
+        frm.fields_dict['items_to_order'].grid.update_docfield_property('item_name', 'columns', 2);
+        frm.fields_dict['items_to_order'].grid.update_docfield_property('item_code', 'columns', 2);
+        frm.fields_dict['items_to_order'].grid.update_docfield_property('qty', 'columns', 2);
+        frm.fields_dict['items_to_order'].grid.update_docfield_property('rate', 'columns', 2);
+        frm.fields_dict['items_to_order'].grid.update_docfield_property('amount', 'columns', 2);
+    }
+    frm.fields_dict['items_to_order'].grid.reset_grid();
+    frm.refresh_field('items_to_order');
+}
+
+function recalculate_all_items(frm) {
+    if (!frm.doc.exchange_rate) return;
+    
+    frm.doc.items_to_order.forEach(function(item) {
+        calculate_item_values(frm, item.doctype, item.name);
+    });
+    
+    frm.refresh_field('items_to_order');
+    calculate_totals(frm);
+}
+
+function calculate_totals(frm) {
+    let total = 0;
+    let base_total = 0;
+    
+    frm.doc.items_to_order.forEach(function(item) {
+        total += flt(item.amount);
+        base_total += flt(item.base_amount);
+    });
+    
+    frm.set_value('total', flt(total, 2));
+    frm.set_value('base_total', flt(base_total, 2));
+}
+
+
+
+frappe.ui.form.on('Request for Purchase Quotation Item', {
+    rate: function(frm, cdt, cdn) {
+        calculate_item_values(frm, cdt, cdn);
+    },
+    
+    qty: function(frm, cdt, cdn) {
+        calculate_item_values(frm, cdt, cdn);
+    },
+    
+    items_to_order_remove: function(frm) {
+        calculate_totals(frm);
+    }
+});
+
+function calculate_item_values(frm, cdt, cdn) {
+    let item = locals[cdt][cdn];
+    let exchange_rate = flt(frm.doc.exchange_rate) || 1;
+    
+    if (item.rate && item.qty) {
+        let amount = flt(item.rate) * flt(item.qty);
+        
+        let base_rate = flt(item.rate) * (1 / exchange_rate);
+
+        let base_amount = item.qty * base_rate;
+
+
+        frappe.model.set_value(cdt, cdn, 'amount', flt(amount, 2));
+        frappe.model.set_value(cdt, cdn, 'base_rate', flt(base_rate, 2));
+        frappe.model.set_value(cdt, cdn, 'base_amount', flt(base_amount, 2));
+    }
+    
+    calculate_totals(frm);
+}

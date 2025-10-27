@@ -39,6 +39,8 @@
   "supplier",
   "items_to_order",
   "technical_remarks",
+  "total",
+  "base_total",
   "notes_section",
   "notes",
   "amended_from"
@@ -96,6 +98,7 @@
    "default": "Draft",
    "fieldname": "status",
    "fieldtype": "Select",
+   "in_global_search": 1,
    "in_standard_filter": 1,
    "label": "Status",
    "no_copy": 1,
@@ -215,6 +218,7 @@
    "default": "Medium",
    "fieldname": "priority",
    "fieldtype": "Select",
+   "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Priority",
    "options": "\nHigh\nMedium\nLow"
@@ -305,13 +309,26 @@
    "label": "Price List Currency",
    "options": "Currency",
    "read_only": 1
+  },
+  {
+   "fieldname": "total",
+   "fieldtype": "Currency",
+   "label": "Total",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "base_total",
+   "fieldtype": "Currency",
+   "label": "Total (Company Currency)",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "icon": "fa fa-shopping-cart",
  "is_submittable": 1,
  "links": [],
- "modified": "2025-10-13 12:25:39.595818",
+ "modified": "2025-10-26 10:30:46.631751",
  "modified_by": "Administrator",
  "module": "Purchase",
  "name": "Request for Purchase",

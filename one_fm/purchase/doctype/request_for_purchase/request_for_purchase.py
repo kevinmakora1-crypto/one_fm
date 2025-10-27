@@ -8,11 +8,11 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.model.mapper import get_mapped_doc
 from frappe.utils import nowdate, getdate, get_url, get_fullname
+from one_fm.data import flt
 from one_fm.processor import sendemail
 from frappe.utils.user import get_users_with_role
 from frappe.permissions import has_permission
 from one_fm.api.doc_events import get_employee_user_id
-from frappe.desk.form.assign_to import add as add_assignment, DuplicateToDoError
 from one_fm.utils import get_users_with_role_permitted_to_doctype
 
 class RequestforPurchase(Document):
@@ -22,7 +22,6 @@ class RequestforPurchase(Document):
 			self.set_onload('exists_qfs', True)
 
 	def on_submit(self):
-		self.assign_purchase_officer()
 		self._update_linked_rfm_quantities()
 		update_rfp_status(self.name)
   
@@ -42,23 +41,11 @@ class RequestforPurchase(Document):
 	def on_cancel(self):
 		self._update_linked_rfm_quantities(delete_event=True)
 
-	def assign_purchase_officer(self):
-		purchase_officers = get_users_with_role_permitted_to_doctype('Purchase Officer', self.doctype)
-		if purchase_officers:
-			requested_items = '<br>'.join([i.item_name for i in self.items])
-			add_assignment({
-				'doctype': self.doctype,
-				'name': self.name,
-				'assign_to': purchase_officers,
-				'description':
-				_(
-					f"""
-						Please Note that a Request for Purchase {self.name} has been submitted.<br>
-						Requested Items: {requested_items} <br>
-						Please review and take necessary actions
-					"""
-				)
-			})
+	def validate(self):
+		if self.currency:
+			self.set_exchange_rate()
+		self.calculate_item_values()
+		self.calculate_totals()
 
 	def validate_items_to_order(self):
 		if not self.items_to_order:
@@ -362,8 +349,39 @@ class RequestforPurchase(Document):
 			"sum(qty)"
 		) or 0
 		return ordered_qty
-		
-    
+
+
+	def set_exchange_rate(self):
+		if not self.currency or self.currency == self.company_currency:
+			self.exchange_rate = 1.0
+			return
+
+		if not self.exchange_rate or self.exchange_rate == 0:
+			exchange_rate = get_exchange_rate(self.currency, self.company_currency, self.transaction_date or today())
+			if exchange_rate:
+				self.exchange_rate = exchange_rate
+
+	def calculate_item_values(self):
+		exchange_rate = flt(self.exchange_rate) or 1
+
+		for item in self.items_to_order:
+			if item.rate and item.qty:
+				item.amount = flt(item.rate) * flt(item.qty)
+
+				item.base_rate = flt(item.rate) * (1 / exchange_rate)
+				item.base_amount = item.qty * item.base_rate
+
+
+
+	def calculate_totals(self):
+		self.total = 0
+		self.base_total = 0
+
+		for item in self.items_to_order:
+			self.total += flt(item.amount)
+			self.base_total += flt(item.base_amount)
+
+
 	@frappe.whitelist()
 	def update_rfp_items(self, updated_items, reason):
 		updated_item_names = {}
@@ -460,6 +478,30 @@ class RequestforPurchase(Document):
 					self.exchange_rate = rate
 		except Exception as e:
 			frappe.log_error(f"Exchange rate fetch failed for RFP {getattr(self, 'name', 'NEW')}: {e}", 'RFP Exchange Rate Fetch')
+
+
+@frappe.whitelist()
+def get_exchange_rate(from_currency, to_currency, transaction_date):
+    filters = {
+        "from_currency": from_currency,
+        "to_currency": to_currency,
+        "date": ("<=", transaction_date)
+    }
+    
+    exchange_rate_doc = frappe.get_all(
+        "Currency Exchange",
+        filters=filters,
+        fields=["exchange_rate"],
+        order_by="date desc",
+        limit=1
+    )
+    
+    if exchange_rate_doc:
+        return flt(exchange_rate_doc[0].exchange_rate)
+    
+    return None
+
+
 
 def update_rfp_status(rfp_name):
 	"""

@@ -46,7 +46,6 @@ class WorkPermit(Document):
         self.update_work_permit_details_in_tp()
         self.update_passport_details_in_employee()
         self.check_required_document_for_workflow()
-        self.notify()
         self.send_work_permit_receipt_to_perm_operator()
         self.set_new_pam_details_in_employee()
 
@@ -55,14 +54,19 @@ class WorkPermit(Document):
         self.validate_workflow_state_fields()
         self.employee_last_checkin = get_employee_last_checkin(self.employee)
 
+        if self.employee:
+            employee_details = frappe.db.get_value("Employee", self.employee, ["status", "relieving_date", "employee_name"], as_dict=True)
+            if employee_details.status != "Active":
+                frappe.throw(_("{0}'s status is currently not active. Work Permit processing is only allowed for active employees").format(employee_details.employee_name))
+            if employee_details.relieving_date:
+                frappe.throw(_("{0}'s Relieving Date has been set to {1}. Work Permit processing is not allowed.").format(employee_details.employee_name, employee_details.relieving_date))
+
     def validate_workflow_state_fields(self):
         states = ['Pending By PAM Operator', 'Pending By Operator']
         db_state = frappe.db.get_value("Work Permit", self.name, 'workflow_state')
         # check for required fields based on workflow
-        if db_state in states and not (
-            self.upload_work_permit and self.new_work_permit_expiry_date and self.upload_work_permit_on
-            ):
-            frappe.throw("Missing Data\nUpload Work Permit, fill Updated Work Permit Expiry Date and Upload On field.")
+        if db_state in states and not self.new_work_permit_expiry_date:
+            frappe.throw("Missing Data fill Updated Work Permit Expiry Date field.")
 
         # check if receipt uploaded and status is supervisor
         if self.attach_invoice and self.workflow_state=="Pending By PAM Operator":
@@ -89,12 +93,6 @@ class WorkPermit(Document):
             self.grd_operator_transfer = frappe.db.get_single_value("HR Settings", "default_grd_operator_transfer")
         if not self.pam_operator:
             self.pam_operator = pam_operator_email = frappe.db.get_single_value("HR Settings", 'default_pam_operator')
-
-    def notify(self):
-        if self.workflow_state == "Pending By Supervisor":
-            subject = ("Work Permit Needs Action")
-            message = "<p>Please Take Action on the Work Permit Record:  <a href='{0}'>{1}</a>.</p>".format(get_url_to_form(self.doctype, self.name),self.name )
-            send_email(self, [self.grd_supervisor], message, subject)
 
     def check_required_document_for_workflow(self):
         """
@@ -232,6 +230,8 @@ class WorkPermit(Document):
             updated_values['passport_number'] = self.new_passport_number
         if self.new_passport_expiry_date:
             updated_values['valid_upto'] = self.new_passport_expiry_date
+        if self.new_passport_issuance_date:
+            updated_values['date_of_issue'] = self.new_passport_issuance_date
 
         if self.employee and updated_values:
             frappe.db.set_value('Employee', self.employee, updated_values)
@@ -239,10 +239,9 @@ class WorkPermit(Document):
     def on_submit(self):
         if self.work_permit_type not in ['Cancellation', 'New Kuwaiti', 'Local Transfer'] and self.workflow_state != "Rejected":
             if self.workflow_state == "Completed" and self.attach_invoice and self.new_work_permit_expiry_date:
-                print("\n\n\n\n####\n\n\n\n")
                 self.db_set('work_permit_status', 'Completed')
                 # self.clean_old_wp_record_in_employee_doctype()
-                self.set_work_permit_attachment_in_employee_doctype(self.new_work_permit_expiry_date, self.upload_work_permit)
+                self.set_work_permit_attachment_in_employee_doctype(self.new_work_permit_expiry_date)
             else:
                 msg = False
                 if  not self.attach_invoice:
@@ -303,7 +302,7 @@ class WorkPermit(Document):
             if has_permission(doctype=self.doctype, user=user):
                 filtered_users.append(user)
             if filtered_users and len(filtered_users) > 0:
-                if "Pending By PAM Operator" in self.workflow_state and not self.upload_work_permit and not self.attach_invoice:
+                if "Pending By PAM Operator" in self.workflow_state and not self.attach_invoice:
                     frappe.throw(_("Upload Required Documents To Submit"))
 
     def notify_grd(self,message,subject,user):

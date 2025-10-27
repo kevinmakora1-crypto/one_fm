@@ -27,6 +27,7 @@ class EmployeeUniform(Document):
 		if self.type == "Issue":
 			self.db_set('status', 'Issued')
 			self.db_set('issued_on', today())
+
 		elif self.type == "Return":
 			self.db_set('status', 'Returned')
 			self.db_set('returned_on', today())
@@ -36,6 +37,7 @@ class EmployeeUniform(Document):
 					frappe.db.set_value('Employee Uniform Item', item.issued_item_link, 'returned', returned+item.quantity)
 		self.onboard_employee_update()
 		make_stock_entry(self)
+        
 
 	def on_cancel(self):
 		# self.onboard_employee_update(True)
@@ -70,7 +72,7 @@ class EmployeeUniform(Document):
 				oe.save(ignore_permissions=True)
 
 	def validate_handover_form(self):
-		if not self.handover_form:
+		if not self.handover_form and not self.linked_rfm :
 			frappe.throw(_("Attach Signed copy of Uniform Handover Form to Submit.!"))
 
 	def validate(self):
@@ -184,19 +186,33 @@ class EmployeeUniform(Document):
 					uniform_issue_ret.issued_item_link = uniform.issued_item_link
 					uniform_issue_ret.issued_on = uniform.issued_on
 
+
 def make_stock_entry(employee_uniform):
 	source_name = employee_uniform.name
-	target_doc=None
+	target_doc = None
+
 	def update_item(obj, target, source_parent):
 		if employee_uniform.type == "Issue":
 			target.s_warehouse = employee_uniform.warehouse
 		else:
 			target.t_warehouse = employee_uniform.warehouse
+		
+		if hasattr(obj, 'name'):
+			target.linked_employee_uniform_item = obj.name
+		
+		if hasattr(obj, 'linked_rfm_reference') and obj.linked_rfm_reference:
+			target.linked_rfm_reference = obj.linked_rfm_reference
 
 	def set_missing_values(source, target):
 		target.purpose = 'Material Receipt'
 		if employee_uniform.type == "Issue":
 			target.purpose = 'Material Issue'
+		
+		target.linked_employee_uniform = employee_uniform.name
+		
+		if hasattr(employee_uniform, 'linked_rfm') and employee_uniform.linked_rfm:
+			target.linked_request_for_material = employee_uniform.linked_rfm
+		
 		target.run_method("calculate_rate_and_amount")
 		target.set_stock_entry_type()
 		target.set_job_card_data()
@@ -223,6 +239,66 @@ def make_stock_entry(employee_uniform):
 	doclist.save(ignore_permissions=True)
 	doclist.submit()
 	frappe.db.set_value("Employee Uniform", employee_uniform.name, "stock_entry", doclist.name)
+
+	if hasattr(employee_uniform, 'linked_rfm') and employee_uniform.linked_rfm and employee_uniform.type == "Issue":
+		update_rfm_issued_quantities(employee_uniform.linked_rfm)
+
+	return doclist.name
+
+
+def update_rfm_issued_quantities(rfm_name):
+	rfm_doc = frappe.get_doc("Request for Material", rfm_name)
+	
+	if rfm_doc.purpose != "Issue":
+		return
+	
+	for rfm_item in rfm_doc.items:
+		rfm_item.issued_quantity = 0
+	
+	linked_uniforms = frappe.get_all(
+		"Employee Uniform",
+		filters={
+			"linked_rfm": rfm_name,
+			"docstatus": 1,
+			"type": "Issue"
+		},
+		pluck="name"
+	)
+	
+	for uniform_name in linked_uniforms:
+		uniform_doc = frappe.get_doc("Employee Uniform", uniform_name)
+		
+		if uniform_doc.stock_entry:
+			stock_entry_doc = frappe.get_doc("Stock Entry", uniform_doc.stock_entry)
+			for stock_item in stock_entry_doc.items:
+				if stock_item.linked_rfm_reference:
+					for rfm_item in rfm_doc.items:
+						if rfm_item.name == stock_item.linked_rfm_reference:
+							rfm_item.issued_quantity = (rfm_item.issued_quantity or 0) + (stock_item.qty or 0)
+							break
+	
+	rfm_doc.status = calculate_rfm_status(rfm_doc)
+	rfm_doc.save(ignore_permissions=True)
+	frappe.db.commit()
+
+
+def calculate_rfm_status(rfm_doc):
+	total_requested = 0
+	total_issued = 0
+	
+	for item in rfm_doc.items:
+		requested_qty = item.qty or 0
+		issued_qty = item.issued_quantity or 0
+		
+		total_requested += requested_qty
+		total_issued += issued_qty
+	
+	if total_issued == 0:
+		return "Pending"
+	elif total_issued < total_requested:
+		return "Partially Issued"
+	else:
+		return "Issued"
 
 def get_issued_item_quantity(item, employee):
 	issued_qty = 0

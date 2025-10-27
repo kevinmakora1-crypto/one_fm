@@ -50,8 +50,8 @@ class MedicalInsurance(Document):
 
 
     def set_depend_on_fields(self):
-        if self.upload_medical_insurance == None:
-            frappe.throw(_('Upload Medical Insurance Is Required To Submit'))
+        if self.upload_medical_insurance is None:
+            frappe.throw(_('You need to upload the Medical Insurance document before you can mark this record as “Done”.'))
 
 
 def valid_work_permit_exists(preparation_name):

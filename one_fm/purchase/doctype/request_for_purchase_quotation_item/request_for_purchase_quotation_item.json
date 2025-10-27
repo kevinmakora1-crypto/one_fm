@@ -18,11 +18,14 @@
   "qty",
   "uom",
   "rate",
+  "amount",
   "col_break2",
   "request_for_material",
   "request_for_material_item",
   "pending_qty",
   "ordered_qty",
+  "base_rate",
+  "base_amount",
   "quotation_section",
   "quotation",
   "supplier",
@@ -31,6 +34,7 @@
  ],
  "fields": [
   {
+   "columns": 2,
    "fieldname": "item_name",
    "fieldtype": "Data",
    "in_global_search": 1,
@@ -42,11 +46,13 @@
    "search_index": 1
   },
   {
+   "columns": 2,
    "fieldname": "column_break_2",
    "fieldtype": "Column Break"
   },
   {
    "allow_on_submit": 1,
+   "columns": 1,
    "fieldname": "item_code",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -151,6 +157,7 @@
   },
   {
    "allow_on_submit": 1,
+   "columns": 2,
    "fieldname": "rate",
    "fieldtype": "Currency",
    "in_list_view": 1,
@@ -191,12 +198,40 @@
    "fieldtype": "Int",
    "label": "Ordered Quantity",
    "read_only": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Amount",
+   "options": "currency",
+   "precision": "0"
+  },
+  {
+   "columns": 2,
+   "fieldname": "base_rate",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Rate (Company Currency)",
+   "options": "Company:company:default_currency",
+   "read_only": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "base_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Amount (Company Currency)",
+   "options": "Company:company:default_currency",
+   "precision": "0",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "istable": 1,
  "links": [],
- "modified": "2025-09-21 09:19:17.037317",
+ "modified": "2025-10-26 12:24:15.697387",
  "modified_by": "Administrator",
  "module": "Purchase",
  "name": "Request for Purchase Quotation Item",

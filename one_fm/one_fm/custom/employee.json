@@ -4699,7 +4699,7 @@
    "columns": 0,
    "creation": "2021-04-18 13:24:39.253044",
    "default": null,
-   "depends_on": "eval:doc.under_company_residency==1",
+   "depends_on": "eval:doc.under_company_residency==1 && doc.pam_type != 'Kuwaiti'",
    "description": null,
    "docstatus": 0,
    "dt": "Employee",

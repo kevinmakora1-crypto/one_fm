@@ -56,9 +56,6 @@ frappe.ui.form.on('Work Permit', {
     grd_operator_apply_work_permit_on_ashal: function(frm){
         set_dates_grd_operator(frm);
     },
-    upload_work_permit: function(frm){
-        set_upload_work_permit(frm);
-    },
     attach_invoice: function(frm){
         set_upload_work_permit_invoice(frm);
     },
@@ -278,16 +275,6 @@ var set_dates_grd_operator = function(frm)
     {
         frm.set_value('grd_operator_apply_work_permit_on_ashal_date',frappe.datetime.now_datetime());
         frm.set_value('work_permit_status',"Pending by Supervisor");
-    }
-};
-var set_upload_work_permit = function(frm) //3
-{
-	if(((frm.doc.upload_work_permit)&&(!frm.doc.upload_work_permit_on)))
-    {
-        frm.set_value('upload_work_permit_on',frappe.datetime.now_datetime());
-    }if(((!frm.doc.upload_work_permit)&&(frm.doc.upload_work_permit_on)))
-    {
-        frm.set_value('upload_work_permit_on',null);
     }
 };
 var set_upload_work_permit_invoice = function(frm){

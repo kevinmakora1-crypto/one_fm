@@ -73,5 +73,20 @@ frappe.query_reports["Purchase Tracker"] = {
 	"options": "ERF",
 	"wildcard_filter": 0
 	}
-	]
+],
+"formatter": function(value, row, column, data, default_formatter) {
+if (column.fieldname === "purchase_order" && value) {
+let po_list = value.split(",").map(function(item) {
+return item.trim();
+});
+let html = po_list.map(function(po) {
+if (po) {
+let url = frappe.utils.get_form_link("Purchase Order", po);
+return `<a href="${url}">${po}</a>`;
+}
+}).join(", ");
+return html;
+}
+return default_formatter(value, row, column, data);
+}
 	};
