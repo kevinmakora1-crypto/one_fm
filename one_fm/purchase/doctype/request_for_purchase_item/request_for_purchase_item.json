@@ -10,6 +10,10 @@
   "column_break_2",
   "item_code",
   "t_warehouse",
+  "is_refundable",
+  "margin_known",
+  "margin_type",
+  "margin_rate_or_amount",
   "section_break_5",
   "description",
   "quantity",
@@ -164,13 +168,38 @@
    "hidden": 1,
    "label": "RFM Quantity",
    "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_refundable",
+   "fieldtype": "Check",
+   "label": "Is Refundable",
+   "read_only": 1
+  },
+  {
+   "fieldname": "margin_known",
+   "fieldtype": "Select",
+   "label": "Margin Known",
+   "options": "\nYes\nNo",
+   "read_only": 1
+  },
+  {
+   "fieldname": "margin_type",
+   "fieldtype": "Select",
+   "label": "Margin Type",
+   "options": "\nPercentage\nAmount"
+  },
+  {
+   "fieldname": "margin_rate_or_amount",
+   "fieldtype": "Float",
+   "label": "Margin Rate or Amount"
   }
  ],
  "grid_page_length": 50,
  "istable": 1,
  "links": [],
- "modified": "2025-10-13 12:47:33.673359",
- "modified_by": "Administrator",
+ "modified": "2025-11-01 00:40:58.062421",
+ "modified_by": "c.akeru@one-fm.com",
  "module": "Purchase",
  "name": "Request for Purchase Item",
  "naming_rule": "Expression (old style)",

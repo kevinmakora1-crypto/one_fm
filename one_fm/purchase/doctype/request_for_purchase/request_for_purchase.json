@@ -26,6 +26,10 @@
   "column_break_8",
   "department",
   "warehouse",
+  "is_refundable",
+  "margin_known",
+  "margin_type",
+  "margin_rate_or_amount",
   "currency_and_price_list_section",
   "currency",
   "exchange_rate",
@@ -39,6 +43,8 @@
   "supplier",
   "items_to_order",
   "technical_remarks",
+  "total",
+  "base_total",
   "notes_section",
   "notes",
   "amended_from"
@@ -307,14 +313,54 @@
    "label": "Price List Currency",
    "options": "Currency",
    "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_refundable",
+   "fieldtype": "Check",
+   "label": "Refundable",
+   "read_only": 1
+  },
+  {
+   "fieldname": "margin_known",
+   "fieldtype": "Select",
+   "label": "Margin Known?",
+   "read_only": 1
+  },
+  {
+   "fieldname": "margin_type",
+   "fieldtype": "Select",
+   "label": "Margin Type",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "total",
+   "fieldtype": "Currency",
+   "label": "Total",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "base_total",
+   "fieldtype": "Currency",
+   "label": "Total (Company Currency)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "margin_rate_or_amount",
+   "fieldtype": "Float",
+   "label": "Margin Rate or Amount",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "icon": "fa fa-shopping-cart",
  "is_submittable": 1,
  "links": [],
- "modified": "2025-10-20 12:48:03.034763",
- "modified_by": "Administrator",
+ "modified": "2025-11-01 00:38:47.202660",
+ "modified_by": "c.akeru@one-fm.com",
  "module": "Purchase",
  "name": "Request for Purchase",
  "naming_rule": "By \"Naming Series\" field",
