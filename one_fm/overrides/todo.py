@@ -313,6 +313,60 @@ def sync_my_google_tasks_with_todos():
 
 
 @frappe.whitelist()
+def sync_single_google_task(google_task):
+    """Syncs a single Google Task to a Frappe ToDo."""
+    try:
+        google_task_id = google_task["id"]
+
+        todos = frappe.get_all("ToDo", filters={"custom_google_task_id": google_task_id}, limit=1)
+
+        due_date_str = google_task.get("due", None)
+        due_date = getdate(due_date_str) if due_date_str else None
+        task_title = google_task.get("title", "")[:100]
+        task_description = google_task.get("notes", "") or google_task.get("title", "")
+        allocated_to = google_task.get("user_email", "")
+        mapped_status = get_mapped_status_from_google_task(google_task)
+
+        if todos:
+            # If ToDo already exists
+            todo = frappe.get_doc("ToDo", todos[0]["name"])
+            todo.db_set("description", task_description)
+            todo.db_set("custom_google_task_title", task_title)
+            todo.db_set("date", due_date)
+            todo.db_set("allocated_to", allocated_to)
+
+            # If status doesnot match
+            if mapped_status != todo.status:
+                # If ToDo has any reference then it shouldn't be closed by Google Task
+                if todo.reference_type and google_task.get("status") == "completed" and todo.status not in ["Closed", "Cancelled"]:
+                    service = get_google_task_service(allocated_to)
+                    payload = {
+                        **google_task,
+                        "title": f"[Hey!! You cant do that, Close the task in ERPNext] - {task_title}",
+                        "status": "needsAction"
+                    }
+                    service.tasks().update(tasklist="@default",task=google_task_id, body=payload).execute()
+                else:
+                    todo.db_set("status", mapped_status)
+        else:
+            # If ToDo doesn't exist, create a new ToDo with google task details
+            new_todo = frappe.get_doc({
+                "doctype": "ToDo",
+                "description": task_description,
+                "date": due_date,
+                "status": mapped_status,
+                "custom_google_task_title": task_title,
+                "custom_google_task_id": google_task_id,
+                "allocated_to": allocated_to,
+                "custom_source": "Google Task"
+            })
+            new_todo.insert(ignore_permissions=True)
+
+    except Exception as e:
+        frappe.log_error(message = str(e),title = f"Failed to sync Google task {google_task.get('id')} to ERP ToDo")
+
+
+@frappe.whitelist()
 def sync_google_tasks_for_users(user_emails=[], timedelta_kwargs=None):
     all_google_tasks = []
 
@@ -340,55 +394,7 @@ def sync_google_tasks_for_users(user_emails=[], timedelta_kwargs=None):
 
     # Iterate through all Google tasks and sync them to ERP ToDo
     for google_task in all_google_tasks:
-        try:
-            google_task_id = google_task["id"]
-
-            todos = frappe.get_all("ToDo", filters={"custom_google_task_id": google_task_id}, limit=1)
-
-            due_date_str = google_task.get("due", None)
-            due_date = getdate(due_date_str) if due_date_str else None
-            task_title = google_task.get("title", "")[:100]
-            task_description = google_task.get("notes", "") or google_task.get("title", "")
-            allocated_to = google_task.get("user_email", "")
-            mapped_status = get_mapped_status_from_google_task(google_task)
-
-            if todos:
-                # If ToDo already exists
-                todo = frappe.get_doc("ToDo", todos[0]["name"])
-                todo.db_set("description", task_description)
-                todo.db_set("custom_google_task_title", task_title)
-                todo.db_set("date", due_date)
-                todo.db_set("allocated_to", allocated_to)
-
-                # If status doesnot match
-                if mapped_status != todo.status:
-                    # If ToDo has any reference then it shouldn't be closed by Google Task
-                    if todo.reference_type and google_task.get("status") == "completed" and todo.status not in ["Closed", "Cancelled"]:
-                        service = get_google_task_service(allocated_to)
-                        payload = {
-                            **google_task,
-                            "title": f"[Hey!! You cant do that, Close the task in ERPNext] - {task_title}",
-                            "status": "needsAction"
-                        }
-                        service.tasks().update(tasklist="@default",task=google_task_id, body=payload).execute()
-                    else:
-                        todo.db_set("status", mapped_status)
-            else:
-                # If ToDo doesn't exist, create a new ToDo with google task details
-                new_todo = frappe.get_doc({
-                    "doctype": "ToDo",
-                    "description": task_description,
-                    "date": due_date,
-                    "status": mapped_status,
-                    "custom_google_task_title": task_title,
-                    "custom_google_task_id": google_task_id,
-                    "allocated_to": allocated_to,
-                    "custom_source": "Google Task"
-                })
-                new_todo.insert(ignore_permissions=True)
-
-        except Exception as e:
-            frappe.log_error(message = str(e),title = f"Failed to sync Google task {google_task_id} to ERP ToDo")
+        frappe.enqueue(sync_single_google_task, google_task=google_task, is_async=True)
 
 @frappe.whitelist()
 def send_email_on_todo_created(doc, method):
