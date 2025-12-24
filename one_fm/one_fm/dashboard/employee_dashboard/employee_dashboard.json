@@ -1,0 +1,20 @@
+{
+ "cards": [],
+ "charts": [
+  {
+   "chart": "Employee Nationality Distribution"
+  }
+ ],
+ "creation": "2024-07-29 10:00:00.000000",
+ "dashboard_name": "Employee Dashboard",
+ "docstatus": 0,
+ "doctype": "Dashboard",
+ "idx": 0,
+ "is_default": 0,
+ "is_standard": 1,
+ "modified": "2024-07-29 12:10:00.000000",
+ "modified_by": "jules@example.com",
+ "module": "One Fm",
+ "name": "Employee Dashboard",
+ "owner": "jules@example.com"
+}

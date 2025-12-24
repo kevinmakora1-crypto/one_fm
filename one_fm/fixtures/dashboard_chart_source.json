@@ -1,0 +1,7 @@
+[
+ {
+  "doctype": "Dashboard Chart Source",
+  "source_name": "Employee Nationality Distribution",
+  "method": "one_fm.one_fm.dashboard.employee_dashboard.employee_dashboard.get_data"
+ }
+]

@@ -1,0 +1,10 @@
+[
+ {
+  "doctype": "Dashboard Chart",
+  "chart_name": "Employee Nationality Distribution",
+  "chart_type": "Custom",
+  "source": "Employee Nationality Distribution",
+  "type": "Bar",
+  "is_navigatable": 1
+ }
+]
