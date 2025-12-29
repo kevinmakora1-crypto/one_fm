@@ -452,14 +452,13 @@ def create_attendance_check(attendance_date=None):
         # Create attendance check for employee who is shift working but no attendance marked on the date
         attendance_not_marked_shift_employees = get_attendance_not_marked_shift_employees(attendance_date)
         if attendance_not_marked_shift_employees:
-            insert_attendance_check_records(attendance_not_marked_shift_employees, attendance_date, True)
+            insert_attendance_check_records(attendance_not_marked_shift_employees, attendance_date, has_no_shift_assignment=True)
 
 def get_absentees_on_date(attendance_date):
     return frappe.get_all("Attendance",
         filters={
             'docstatus': 1,
             'status': 'Absent',
-            "is_unscheduled":0,
             'attendance_date': attendance_date,
             "employee": ["not in", frappe.db.get_list('Shift Permission', filters={'date': attendance_date}, pluck='employee')]
         },
@@ -477,47 +476,240 @@ def get_attendance_not_marked_shift_employees(attendance_date):
     # Fetch the list of employees, attendance marked for the date and basic roster
     
     # Fetch all the employees who is shift working but no attendance marked
-    return frappe.db.get_all("Attendance",
-        filters={
-            "attendance_date": attendance_date,
-            "roster_type": "Basic",
-            "docstatus": 1,
-            'is_unscheduled':1
-        },
-        fields=["employee"]
-    )
-
-def insert_attendance_check_records(details, attendance_date, is_unscheduled=False):
-    for count, data in enumerate(details):
-        try:
-            attendance_by_timesheet = False
-            if not is_unscheduled:
-                attendance_by_timesheet = frappe.db.get_value("Employee", data["employee"], "attendance_by_timesheet")
-            filters = {
-                "doctype": "Attendance Check",
-                "employee": data["employee"],
-                "date": attendance_date,
-                "attendance": data["attendance"] if "attendance" in data else "",
-                "roster_type": data["roster_type"] if "roster_type" in data else "Basic",
-                'is_unscheduled': is_unscheduled,
-                "attendance_by_timesheet": attendance_by_timesheet,
-                "marked_attendance_status": data["attendance_status"] if "attendance_status" in data else "",
-                "shift_assignment": data["shift_assignment"] if "shift_assignment" in data else "",
-                "attendance_marked": 1 if "attendance" in data else 0,
-                "comment": data["attendance_comment"] if "attendance_comment" in data else ""
-            }
-
-            doc = frappe.get_doc(filters)
-            doc.flags.ignore_mandatory = 1
-            doc.insert(ignore_permissions=1)
-        except Exception as e:
-            if not "Attendance Check already exist for" in str(e):
-                frappe.log_error(message=frappe.get_traceback(), title="Attendance Check Creation")
-        if count%10==0:
-            frappe.db.commit()
-    frappe.db.commit()
+    return frappe.db.sql("""
+        SELECT
+            sa.employee,
+            sa.name as shift_assignment
+        FROM
+            `tabShift Assignment` sa
+        LEFT JOIN
+            `tabAttendance` att
+        ON
+            sa.employee = att.employee AND att.attendance_date = %(attendance_date)s
+        WHERE
+            sa.start_date <= %(attendance_date)s
+            AND sa.end_date >= %(attendance_date)s
+            AND sa.docstatus = 1
+            AND sa.status = 'Active'
+            AND att.name IS NULL
+    """, {"attendance_date": attendance_date}, as_dict=1)
 
 @frappe.whitelist()
+def check_attendance_manager(email: str) -> bool:
+    return (frappe.db.get_value("Employee", {"user_id": email}) == frappe.db.get_single_value("ONEFM General Setting", "attendance_manager")) or (frappe.session.user == "Administrator")
+
+def attendance_check_pending_approval_check():
+    pending_approval_attendance_checks = get_pending_approval_attendance_check(48)
+    if pending_approval_attendance_checks and len(pending_approval_attendance_checks) > 0:
+        # Issue Penalty to the assigned approver
+        issue_penalty_to_the_assigned_approver(pending_approval_attendance_checks)
+        # Assign the attendance checks to attendance manager for approval
+        assign_attendance_manager(pending_approval_attendance_checks)
+
+        frappe.db.commit()
+
+def get_pending_approval_attendance_check(hours):
+    # Method to get list of attendance check, which is in panding approval state after a given hours
+    date_time = datetime.strptime(now(), '%Y-%m-%d %H:%M:%S.%f') - timedelta(hours=hours)
+    return  frappe.db.sql("""
+        select
+            name, _assign as assign_to
+        from
+            `tabAttendance Check`
+        where
+            creation <= %s
+            and
+            docstatus = 0
+
+    """, (date_time), as_dict=1)
+
+
+def issue_penalty_to_the_assigned_approver(pending_approval_attendance_checks):
+    try:
+        approvers = {}
+        for pending_approval_attendance_check in pending_approval_attendance_checks:
+
+            if pending_approval_attendance_check.get('assign_to'):
+                assign_to = frappe.parse_json(pending_approval_attendance_check.assign_to)
+                if assign_to and len(assign_to) > 0:
+                    if assign_to[0] in approvers:
+                        approvers[assign_to[0]] += ", "+pending_approval_attendance_check.name
+                    else:
+                        approvers[assign_to[0]] = pending_approval_attendance_check.name
+
+        penalty_type = frappe.db.get_single_value("ONEFM General Setting", "att_check_approver_penalty_type")
+        for approver in approvers:
+            note = "There are attendance check not approved "+approvers[approver]
+            approver_employee = frappe.db.get_values(
+                "Employee",
+                {"user_id": approver},
+                ['name', 'employee_name', 'designation'],
+                as_dict=True
+            )
+            if approver_employee and len(approver_employee)>0:
+                penalty = frappe.get_doc({
+                    "doctype": "Penalty",
+                    "penalty_issuance_time": now(),
+                    "recipient_employee": approver_employee[0].name,
+                    "recipient_name": approver_employee[0].employee_name,
+                    "recipient_designation": approver_employee[0].designation,
+                    "recipient_user": approver,
+                })
+                penalty_details = penalty.append("penalty_details")
+                penalty_details.penalty_type = penalty_type
+                penalty_details.exact_notes = note
+                penalty.save(ignore_permissions=True)
+    except:
+        frappe.log_error(title = "Error Creating Penalty Documents",message = frappe.get_traceback())
+
+def fetch_existing_todos(manager):
+    """Fetch the existing todos for attendance checks assigned to the attendance manager
+    Args:
+        manager (Str): User
+    """
+    existing_todos = frappe.get_all("ToDo",{'allocated_to':manager,'status':'Open','reference_type':'Attendance Check'},['reference_name'])
+    return [i.reference_name for i in existing_todos]
+
+
+def create_split_query(todos,limit,manager,today,today_datetime):
+    """
+    This is to mitigate max_allowed_packet errors when the query size is too large
+    Args:
+        todos (_type_): all todos
+        limit (int): the number of todos per string
+    """
+    def create_sql_query(sublist):
+        values = []
+        for d in sublist:
+            vals = f"""
+                '{manager}_{d.name}',
+                 '{manager}',
+                 'Attendance Check',
+                 '{d.name}',
+                 "Assignment for Attendance Check {d.name}",
+                 'Medium',
+                 'Open',
+                 '{today}',
+                "Administrator",
+                "Action",
+                "Administrator",
+                '{today_datetime}',
+               '{today_datetime}'
+               """
+            values.append(f"({vals})")
+        query = """ INSERT INTO `tabToDo`
+                (`name`,`allocated_to`, `reference_type`, `reference_name`,
+                `description`, `priority`,`status`, `date`,`owner`,`type`,`assigned_by`,`creation`, `modified`)
+                VALUES """ + ', '.join(values)
+        return query
+
+    split_lists = [todos[i:i + limit] for i in range(0, len(todos), limit)]
+
+    # Creating SQL query strings for each sublist
+    sql_queries = [create_sql_query(sublist) for sublist in split_lists]
+
+    return sql_queries
+
+def create_todos(manager,todos):
+    """Create todos for the attendance manager
+      Using this approach because there a potential for over 50k entries and timeout
+
+    Args:
+        manager (str): attenance manager user
+        todos (list): a list of dicts with todo details
+    """
+    try:
+        today = frappe.utils.getdate()
+        today_datetime = frappe.utils.get_datetime()
+
+        if len(todos)>10000:
+            # Query needs to be split to avoid max query package error
+            split_query =create_split_query(todos,10000,manager,today,today_datetime)
+            for each in split_query:
+                frappe.db.sql(each,values=[])
+        else:
+            query = """
+                INSERT INTO
+                    `tabToDo`
+                    (
+                        `name`,`allocated_to`, `reference_type`, `reference_name`,`description`, `priority`,
+                        `status`, `date`, `assigned_by`,`creation`, `modified`,`type`,`owner`
+                    )
+                VALUES
+            """
+            query_body = """"""
+            for each in todos:
+                query_body+= f"""
+                        (
+                            "{'_'.join([manager,each.name])}", "{manager}", "{'Attendance Check'}", "{each.name}",
+                            "Assignment for Attendance Check {each.name}", "{'Medium'}", "{'Open'}", '{today}',
+                            "Administrator",'{today_datetime}','{today_datetime}',"Action","Administrator"
+                        ),"""
+            if query_body:
+                query += query_body[:-1]
+                frappe.db.sql(query,values=[])
+        frappe.db.commit()
+    except:
+        frappe.log_error(title = "Error Assigning to Attendance Manager",message = frappe.get_traceback())
+
+def notify_manager(manager):
+    """Notify the manager that new todos have been created for them
+
+    Args:
+        manager (str): attendance manager
+    """
+    try:
+        page_link = frappe.utils.get_url()+f'/app/todo?date={frappe.utils.get_date_str(frappe.utils.getdate())}&allocated_to={manager}'
+        msg = frappe.render_template('one_fm/templates/emails/attendance_manager_todo_assignment.html', context={"manager": manager,'page_link':page_link})
+        sendemail(recipients= [manager], content=msg, subject="Pending Attendance Checks", delayed=False)
+    except:
+        frappe.log_error(title = "Error Notifying  Attendance Manager",message = frappe.get_traceback())
+
+
+
+
+
+def assign_attendance_manager(pending_approval_attendance_checks):
+    attendance_manager_user = fetch_attendance_manager_user()
+    if attendance_manager_user:
+        existing_todos = fetch_existing_todos(attendance_manager_user)
+        filtered_pending_approval_attendance_check = [i for i in pending_approval_attendance_checks if i.name not in existing_todos ]
+        create_todos(attendance_manager_user,filtered_pending_approval_attendance_check)
+        if filtered_pending_approval_attendance_check:
+            notify_manager(attendance_manager_user)
+
+
+def schedule_attendance_check():
+    frappe.enqueue(create_attendance_check, queue='long', timeout=7000)def insert_attendance_check_records(details, attendance_date, has_no_shift_assignment=False):
+    for count, data in enumerate(details):
+        try:
+            # Only create Attendance Check for employees with shift assignment or attendance by timesheet
+            attendance_by_timesheet = frappe.db.get_value("Employee", data["employee"], "attendance_by_timesheet")
+            has_shift_assignment = bool(data.get("shift_assignment"))
+
+            if attendance_by_timesheet or has_shift_assignment:
+                filters = {
+                    "doctype": "Attendance Check",
+                    "employee": data["employee"],
+                    "date": attendance_date,
+                    "attendance": data.get("attendance", ""),
+                    "roster_type": data.get("roster_type", "Basic"),
+                    "attendance_by_timesheet": attendance_by_timesheet,
+                    "marked_attendance_status": data.get("attendance_status", ""),
+                    "shift_assignment": data.get("shift_assignment", ""),
+                    "attendance_marked": 1 if data.get("attendance") else 0,
+                    "comment": data.get("attendance_comment", "")
+                }
+
+                doc = frappe.get_doc(filters)
+                doc.flags.ignore_mandatory = 1
+                doc.insert(ignore_permissions=1)
+        except Exception as e:
+            if "Attendance Check already exist for" not in str(e):
+                frappe.log_error(message=frappe.get_traceback(), title="Attendance Check Creation")
+        if count % 10 == 0:
+            frappe.db.commit()
+    frappe.db.commit()@frappe.whitelist()
 def check_attendance_manager(email: str) -> bool:
     return (frappe.db.get_value("Employee", {"user_id": email}) == frappe.db.get_single_value("ONEFM General Setting", "attendance_manager")) or (frappe.session.user == "Administrator")
 

@@ -53,8 +53,7 @@
   "attendance_request",
   "section_break_xzkb1",
   "comment",
-  "amended_from",
-  "is_unscheduled"
+  "amended_from"
  ],
  "fields": [
   {
@@ -359,13 +358,6 @@
    "fieldtype": "Small Text",
    "label": "Other Reason",
    "mandatory_depends_on": "eval:doc.justification == \"Other\""
-  },
-  {
-   "default": "0",
-   "fieldname": "is_unscheduled",
-   "fieldtype": "Check",
-   "label": "Has No Shift Assignment",
-   "read_only": 1
   },
   {
    "fieldname": "column_break_eekf",

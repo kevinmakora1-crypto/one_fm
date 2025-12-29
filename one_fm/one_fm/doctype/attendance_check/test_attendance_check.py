@@ -75,6 +75,24 @@ class TestAttendanceCheckMockDB(FrappeTestCase):
     def tearDown(self):
         upatch.stopall()
 
+    def test_attendance_check_not_created_if_no_shift_and_not_timesheet(self):
+        details = [{"employee": self.employee.name}]
+        with upatch("frappe.db.get_value", MagicMock(return_value=0)):
+            insert_attendance_check_records(details, "2025-08-20")
+            frappe.get_doc.assert_not_called()
+
+    def test_attendance_check_created_if_no_shift_but_on_timesheet(self):
+        details = [{"employee": self.employee.name}]
+        with upatch("frappe.db.get_value", MagicMock(return_value=1)):
+            insert_attendance_check_records(details, "2025-08-20")
+            frappe.get_doc.assert_called()
+
+    def test_attendance_check_created_if_shift_and_not_on_timesheet(self):
+        details = [{"employee": self.employee.name, "shift_assignment": "SHIFT1"}]
+        with upatch("frappe.db.get_value", MagicMock(return_value=0)):
+            insert_attendance_check_records(details, "2025-08-20")
+            frappe.get_doc.assert_called()
+
     def test_insert_attendance_check_record(self):
         frappe.get_last_doc.return_value = MagicMock(
             employee=self.employee.name,
@@ -127,19 +145,6 @@ class TestAttendanceCheckMockDB(FrappeTestCase):
         insert_attendance_check_records(details, "2025-08-20")
         ac = frappe.get_last_doc("Attendance Check")
         self.assertTrue(ac.attendance_by_timesheet)
-
-    def test_insert_attendance_check_is_unscheduled(self):
-        frappe.get_last_doc.return_value = MagicMock(is_unscheduled=True)
-        details = [{
-            "employee": self.employee.name,
-            "attendance": self.attendance.name,
-            "roster_type": "Basic",
-            "shift_assignment": self.shift_assignment.name,
-            "attendance_status": "Absent"
-        }]
-        insert_attendance_check_records(details, "2025-08-20", is_unscheduled=True)
-        ac = frappe.get_last_doc("Attendance Check")
-        self.assertTrue(ac.is_unscheduled)
 
     def test_insert_attendance_check_missing_optional_fields(self):
         frappe.get_last_doc.return_value = MagicMock(roster_type="Basic", comment="")
