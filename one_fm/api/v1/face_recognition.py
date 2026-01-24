@@ -33,7 +33,7 @@ def base64_to_mp4(base64_string):
 
 
 @frappe.whitelist()
-def enroll(employee_id: str = None, filename: str = None, video: str = None) -> dict:
+def enroll(employee_id: str = None) -> dict:
     """This method enrolls the user face into the system for future face recognition use cases.
 
     Args:
@@ -50,34 +50,9 @@ def enroll(employee_id: str = None, filename: str = None, video: str = None) -> 
     try:
         if not employee_id:
             return response("Bad Request", 400, None, "Employee ID required.")
-
-        if not filename:
-            filename = frappe.session.user+'.mp4'
-
-        video_file = frappe.request.files.get("video_file") or video or frappe.request.files.get("video")
-        endpoint_state = frappe.db.get_single_value("ONEFM General Setting", 'enable_face_recognition_endpoint')
-        if not video_file:
-            if endpoint_state:
-                return response("Bad Request", 400, None, "Video File is required.")
-
-        # check Face Recognition Endpoint
-
-        if endpoint_state:
-            if not face_recog_base_url:
-                return response("Bad Request", 400, None, "Face Recognition Service configuration is not available.")
-            status, message = verify_via_face_recogniton_service(url=face_recog_base_url + "enroll", data={"username": frappe.session.user, "filename": filename}, files={"video_file": video_file})
-        else:
-            status, message = True, 'Successful'
-
-
         doc = frappe.get_doc("Employee", {"employee_id": employee_id})
         if not doc:
             return response("Resource Not Found", 404, None, "No employee found with {employee_id}".format(employee_id=employee_id))
-
-
-
-        if not status:
-            return response("Bad Request", 400, None, message)
 
         # Set a context flag to indicate an API update (It will affect in 'Employee' validate method)
         frappe.flags.allow_enrollment_update = True
