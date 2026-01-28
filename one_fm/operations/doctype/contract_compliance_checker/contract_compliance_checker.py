@@ -46,14 +46,17 @@ class GenerateContractComplianceChecker:
 				fields=["name", "start_date", "end_date"]
 			)
 	
-	def get_post_schedules(self, project, post, start_date, end_date):
+	def get_post_schedules(self, project, post, start_date, end_date, post_statuses=None):
+		if post_statuses is None:
+			post_statuses = ['Planned']
+		
 		return frappe.db.count(
 			"Post Schedule",
 			filters={
 				"date": ['BETWEEN', [start_date, end_date]],
 				"project": project,
 				"post": post.name,
-				"post_status": 'Planned'
+				"post_status": ['in', post_statuses]
 			}
 		)
 	
@@ -192,7 +195,8 @@ class GenerateContractComplianceChecker:
 					project=contract_data.project,
 					post=post,
 					start_date=post_start_date,
-					end_date=post_end_date
+					end_date=post_end_date,
+					post_statuses=['Planned', 'Client Post Off']
 				)
 				
 			if not post_schedules_count:
