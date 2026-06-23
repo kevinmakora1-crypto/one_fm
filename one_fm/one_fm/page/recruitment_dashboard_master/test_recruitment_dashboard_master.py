@@ -131,3 +131,12 @@ class TestRecruitmentDashboard(FrappeTestCase):
 		self.assertEqual(female["remaining"], 1)
 		self.assertEqual(female["planning_check"], "Plan Interviews")
 
+		# Check Countries List
+		self.assertTrue("countries" in erf_row)
+		countries = erf_row["countries"]
+		any_country = [c for c in countries if c["country"] == "Any"]
+		self.assertEqual(len(any_country), 1)
+		c_total = any_country[0]["total"]
+		self.assertEqual(c_total["pr_count"], 52)
+		self.assertEqual(c_total["remaining"], 52)
+

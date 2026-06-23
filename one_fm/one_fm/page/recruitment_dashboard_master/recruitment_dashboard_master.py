@@ -134,56 +134,106 @@ def get_dashboard_data():
 		fields=["erf", "gender", "planned_numbers_to_recruit"]
 	)
 
-	# Initialize aggregation dict
-	data = {}
+	# Initialize aggregation structure
+	data_map = {}
 	for erf_name in erf_names:
-		data[erf_name] = {}
-		for gender in ["Total", "Male", "Female"]:
-			data[erf_name][gender] = {
-				"erf_number": erf_name,
-				"designation": erf_designations[erf_name],
-				"gender": gender,
-				"pr_count": 0,
-				"joined_without_pr": 0,
-				"erf_count": 0,
-				"awaiting_response_overseas": 0,
-				"awaiting_response_local": 0,
-				"accepted_with_visa": 0,
-				"accepted_awaiting_visa": 0,
-				"local_hire": 0,
-				"remaining": 0,
-				"planned": 0,
-				"planning_check": "",
-				"status_class": "",
-				"nationalities": {},
-				"sources": {}
-			}
+		data_map[erf_name] = {
+			"erf_number": erf_name,
+			"designation": erf_designations[erf_name],
+			"total": {
+				"erf_number": erf_name, "designation": erf_designations[erf_name], "gender": "Total", "country": "",
+				"pr_count": 0, "joined_without_pr": 0, "erf_count": 0, "awaiting_response_overseas": 0, "awaiting_response_local": 0,
+				"accepted_with_visa": 0, "accepted_awaiting_visa": 0, "local_hire": 0, "remaining": 0, "planned": 0, "planning_check": "", "status_class": ""
+			},
+			"male": {
+				"erf_number": erf_name, "designation": erf_designations[erf_name], "gender": "Male", "country": "",
+				"pr_count": 0, "joined_without_pr": 0, "erf_count": 0, "awaiting_response_overseas": 0, "awaiting_response_local": 0,
+				"accepted_with_visa": 0, "accepted_awaiting_visa": 0, "local_hire": 0, "remaining": 0, "planned": 0, "planning_check": "", "status_class": ""
+			},
+			"female": {
+				"erf_number": erf_name, "designation": erf_designations[erf_name], "gender": "Female", "country": "",
+				"pr_count": 0, "joined_without_pr": 0, "erf_count": 0, "awaiting_response_overseas": 0, "awaiting_response_local": 0,
+				"accepted_with_visa": 0, "accepted_awaiting_visa": 0, "local_hire": 0, "remaining": 0, "planned": 0, "planning_check": "", "status_class": ""
+			},
+			"countries": {}
+		}
 
-	# Aggregate PMRs by designation
-	# "Total number of PMR PER DESIGNATION AS AN ERF VALUE.. ONLY THOSE PRS IN PROCESS"
+	def make_metrics_dict(erf_name, designation, gender, country=None):
+		return {
+			"erf_number": erf_name,
+			"designation": designation,
+			"gender": gender,
+			"country": country or "",
+			"pr_count": 0,
+			"joined_without_pr": 0,
+			"erf_count": 0,
+			"awaiting_response_overseas": 0,
+			"awaiting_response_local": 0,
+			"accepted_with_visa": 0,
+			"accepted_awaiting_visa": 0,
+			"local_hire": 0,
+			"remaining": 0,
+			"planned": 0,
+			"planning_check": "",
+			"status_class": ""
+		}
+
+	def add_metric(erf_name, country, gender, metric_key, val):
+		if not val or not erf_name or erf_name not in data_map:
+			return
+		
+		erf_entry = data_map[erf_name]
+		designation = erf_entry["designation"]
+		
+		# Clean and standardize keys
+		c_name = (country or "Any").strip()
+		if not c_name:
+			c_name = "Any"
+			
+		g_key = (gender or "Any").strip()
+		if g_key not in ["Male", "Female"]:
+			g_key = "Any"
+
+		# Ensure country dict is initialized
+		if c_name not in erf_entry["countries"]:
+			erf_entry["countries"][c_name] = {
+				"country": c_name,
+				"total": make_metrics_dict(erf_name, designation, "Total", c_name),
+				"male": make_metrics_dict(erf_name, designation, "Male", c_name),
+				"female": make_metrics_dict(erf_name, designation, "Female", c_name)
+			}
+		
+		# Add to country level
+		erf_entry["countries"][c_name]["total"][metric_key] += val
+		if g_key in ["Male", "Female"]:
+			erf_entry["countries"][c_name][g_key.lower()][metric_key] += val
+
+		# Add to overall ERF level
+		erf_entry["total"][metric_key] += val
+		if g_key in ["Male", "Female"]:
+			erf_entry[g_key.lower()][metric_key] += val
+
+	# 1. Aggregate PMRs by designation
 	for pmr in pmrs:
 		if pmr.designation and pmr.designation in designation_to_erf:
 			erf = designation_to_erf[pmr.designation]
 			gender = pmr.gender or "Any"
+			nationality = pmr.nationality or "Any"
 			count = pmr.number_to_hire or 0
-			
-			data[erf]["Total"]["pr_count"] += count
-			if gender in ["Male", "Female"]:
-				data[erf][gender]["pr_count"] += count
+			add_metric(erf, nationality, gender, "pr_count", count)
 
-	# Aggregate Joined Without PR
-	# "CANDIDATES WHO HAVE JOINED IN CCP , BUT HAVE NOT CLOSED ANY PMR"
+	# 2. Aggregate Joined Without PR
 	for ccp in ccps:
 		if ccp.status == "Joined":
 			# Identify ERF (either ccp.erf or look up via designation in job_offer)
 			erf = ccp.erf
-			if not erf or erf not in data:
+			if not erf or erf not in data_map:
 				# Try looking up via job offer designation
 				if ccp.job_offer:
 					jo_designation = frappe.db.get_value("Job Offer", ccp.job_offer, "designation")
 					if jo_designation and jo_designation in designation_to_erf:
 						erf = designation_to_erf[jo_designation]
-			if not erf or erf not in data:
+			if not erf or erf not in data_map:
 				continue
 
 			app_info = get_applicant_info(ccp.job_applicant)
@@ -191,34 +241,13 @@ def get_dashboard_data():
 			
 			if not is_linked_to_completed_pmr:
 				gender = app_info["gender"]
-				data[erf]["Total"]["joined_without_pr"] += 1
-				if gender in ["Male", "Female"]:
-					data[erf][gender]["joined_without_pr"] += 1
+				nationality = app_info["nationality"]
+				add_metric(erf, nationality, gender, "joined_without_pr", 1)
 
-			# Demographics aggregation
-			nationality = app_info["nationality"]
-			source = app_info["source"]
-			gender = app_info["gender"]
-			
-			row_total = data[erf]["Total"]
-			row_total["nationalities"][nationality] = row_total["nationalities"].get(nationality, 0) + 1
-			row_total["sources"][source] = row_total["sources"].get(source, 0) + 1
-			if gender in ["Male", "Female"]:
-				row_gender = data[erf][gender]
-				row_gender["nationalities"][nationality] = row_gender["nationalities"].get(nationality, 0) + 1
-				row_gender["sources"][source] = row_gender["sources"].get(source, 0) + 1
-
-	# Compute ERF Count
-	for erf in data:
-		for gender in data[erf]:
-			row = data[erf][gender]
-			row["erf_count"] = row["pr_count"] - row["joined_without_pr"]
-
-	# Aggregate Job Offers Awaiting Response and Local Hires Accepted
-	# "Job offers awaiting response for the same designation and erf in job offer"
+	# 3. Aggregate Job Offers Awaiting Response and Local Hires Accepted
 	for offer in job_offers:
 		erf = offer.one_fm_erf
-		if not erf or erf not in data:
+		if not erf or erf not in data_map:
 			continue
 		
 		# Verify same designation
@@ -230,75 +259,58 @@ def get_dashboard_data():
 		gender = app_info["gender"]
 		is_local = app_info["is_local"]
 		nationality = app_info["nationality"]
-		source = app_info["source"]
 
 		if offer.status == "Awaiting Response":
-			if is_local:
-				data[erf]["Total"]["awaiting_response_local"] += 1
-				if gender in ["Male", "Female"]:
-					data[erf][gender]["awaiting_response_local"] += 1
-			else:
-				data[erf]["Total"]["awaiting_response_overseas"] += 1
-				if gender in ["Male", "Female"]:
-					data[erf][gender]["awaiting_response_overseas"] += 1
+			metric = "awaiting_response_local" if is_local else "awaiting_response_overseas"
+			add_metric(erf, nationality, gender, metric, 1)
 		elif offer.status == "Accepted" and is_local:
-			data[erf]["Total"]["local_hire"] += 1
-			if gender in ["Male", "Female"]:
-				data[erf][gender]["local_hire"] += 1
+			add_metric(erf, nationality, gender, "local_hire", 1)
 
-		# Demographics aggregation
-		row_total = data[erf]["Total"]
-		row_total["nationalities"][nationality] = row_total["nationalities"].get(nationality, 0) + 1
-		row_total["sources"][source] = row_total["sources"].get(source, 0) + 1
-		if gender in ["Male", "Female"]:
-			row_gender = data[erf][gender]
-			row_gender["nationalities"][nationality] = row_gender["nationalities"].get(nationality, 0) + 1
-			row_gender["sources"][source] = row_gender["sources"].get(source, 0) + 1
-
-	# Aggregate CCP Visa metrics
-	# "Candidates who are having visa where in their visa doctype the status is completed... this is only for candidates in ccp whoSE STatus is In process"
+	# 4. Aggregate CCP Visa metrics
 	for ccp in ccps:
 		if ccp.status == "In Process":
 			erf = ccp.erf
-			if not erf or erf not in data:
+			if not erf or erf not in data_map:
 				# Try looking up via job offer designation
 				if ccp.job_offer:
 					jo_designation = frappe.db.get_value("Job Offer", ccp.job_offer, "designation")
 					if jo_designation and jo_designation in designation_to_erf:
 						erf = designation_to_erf[jo_designation]
-			if not erf or erf not in data:
+			if not erf or erf not in data_map:
 				continue
 
 			app_info = get_applicant_info(ccp.job_applicant)
 			gender = app_info["gender"]
 			is_local = app_info["is_local"]
 			nationality = app_info["nationality"]
-			source = app_info["source"]
 
 			if not is_local:
 				has_visa = ccp.name in completed_visa_ccps
-				if has_visa:
-					data[erf]["Total"]["accepted_with_visa"] += 1
-					if gender in ["Male", "Female"]:
-						data[erf][gender]["accepted_with_visa"] += 1
-				else:
-					data[erf]["Total"]["accepted_awaiting_visa"] += 1
-					if gender in ["Male", "Female"]:
-						data[erf][gender]["accepted_awaiting_visa"] += 1
+				metric = "accepted_with_visa" if has_visa else "accepted_awaiting_visa"
+				add_metric(erf, nationality, gender, metric, 1)
 
-			# Demographics aggregation
-			row_total = data[erf]["Total"]
-			row_total["nationalities"][nationality] = row_total["nationalities"].get(nationality, 0) + 1
-			row_total["sources"][source] = row_total["sources"].get(source, 0) + 1
-			if gender in ["Male", "Female"]:
-				row_gender = data[erf][gender]
-				row_gender["nationalities"][nationality] = row_gender["nationalities"].get(nationality, 0) + 1
-				row_gender["sources"][source] = row_gender["sources"].get(source, 0) + 1
+	# 5. Aggregate Planned Numbers (Recruitment Plan)
+	for plan in rec_plans:
+		erf = plan.erf
+		if not erf or erf not in data_map:
+			continue
+		gender = plan.gender or "Any"
+		planned = plan.planned_numbers_to_recruit or 0
+		
+		# Add to overall ERF level
+		g_key = (gender or "Any").strip()
+		if g_key not in ["Male", "Female"]:
+			g_key = "Any"
+			
+		data_map[erf]["total"]["planned"] += planned
+		if g_key in ["Male", "Female"]:
+			data_map[erf][g_key.lower()]["planned"] += planned
 
-	# Compute Remaining Requirement
-	for erf in data:
-		for gender in data[erf]:
-			row = data[erf][gender]
+	# 6. Compute Remaining, Planning Check, and Status Class (Second Pass)
+	for erf_entry in data_map.values():
+		# Calculate overall
+		for row in [erf_entry["total"], erf_entry["male"], erf_entry["female"]]:
+			row["erf_count"] = row["pr_count"] - row["joined_without_pr"]
 			row["remaining"] = (
 				row["erf_count"] 
 				- row["awaiting_response_overseas"] 
@@ -307,33 +319,14 @@ def get_dashboard_data():
 				- row["accepted_awaiting_visa"] 
 				- row["local_hire"]
 			)
-
-	# Aggregate Planned Numbers (Recruitment Plan)
-	for plan in rec_plans:
-		erf = plan.erf
-		if not erf or erf not in data:
-			continue
-		gender = plan.gender or "Any"
-		planned = plan.planned_numbers_to_recruit or 0
-
-		data[erf]["Total"]["planned"] += planned
-		if gender in ["Male", "Female"]:
-			data[erf][gender]["planned"] += planned
-
-	# Compute Planning Check and Status Class based on remaining adjusted by planned
-	for erf in data:
-		for gender in data[erf]:
-			row = data[erf][gender]
-			r = row["remaining"]
-			p = row["planned"]
 			
-			diff = r - p
+			diff = row["remaining"] - row["planned"]
 			if diff < 0:
 				row["planning_check"] = "OK (Overhired)"
 				row["status_class"] = "status-grey"
 			elif diff == 0:
-				if p > 0:
-					row["planning_check"] = f"OK (Planned {p})"
+				if row["planned"] > 0:
+					row["planning_check"] = f"OK (Planned {row['planned']})"
 				else:
 					row["planning_check"] = "OK"
 				row["status_class"] = "status-green"
@@ -341,15 +334,54 @@ def get_dashboard_data():
 				row["planning_check"] = "Plan Interviews"
 				row["status_class"] = "status-red"
 
+		# Calculate country rows
+		for c_entry in erf_entry["countries"].values():
+			for row in [c_entry["total"], c_entry["male"], c_entry["female"]]:
+				row["erf_count"] = row["pr_count"] - row["joined_without_pr"]
+				row["remaining"] = (
+					row["erf_count"] 
+					- row["awaiting_response_overseas"] 
+					- row["awaiting_response_local"] 
+					- row["accepted_with_visa"] 
+					- row["accepted_awaiting_visa"] 
+					- row["local_hire"]
+				)
+				
+				diff = row["remaining"] - row["planned"]
+				if diff < 0:
+					row["planning_check"] = "OK (Overhired)"
+					row["status_class"] = "status-grey"
+				elif diff == 0:
+					if row["planned"] > 0:
+						row["planning_check"] = f"OK (Planned {row['planned']})"
+					else:
+						row["planning_check"] = "OK"
+					row["status_class"] = "status-green"
+				else: # diff > 0
+					row["planning_check"] = "Plan Interviews"
+					row["status_class"] = "status-red"
+
 	# Format output
 	output = []
 	for erf in erf_names:
+		erf_entry = data_map[erf]
+		
+		country_list = []
+		for c_name, c_data in erf_entry["countries"].items():
+			country_list.append({
+				"country": c_name,
+				"total": c_data["total"],
+				"male": c_data["male"],
+				"female": c_data["female"]
+			})
+			
 		erf_data = {
 			"erf_number": erf,
-			"designation": erf_designations[erf],
-			"total": data[erf]["Total"],
-			"male": data[erf]["Male"],
-			"female": data[erf]["Female"]
+			"designation": erf_entry["designation"],
+			"total": erf_entry["total"],
+			"male": erf_entry["male"],
+			"female": erf_entry["female"],
+			"countries": country_list
 		}
 		output.append(erf_data)
 
