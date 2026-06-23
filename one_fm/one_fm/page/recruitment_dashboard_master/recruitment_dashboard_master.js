@@ -121,117 +121,8 @@ function renderStructure($container, data) {
 				<div class="summary-card-value kpi-remaining-gap">0</div>
 			</div>
 		</div>
-
-		<div class="dashboard-table-wrapper">
-			<table class="dashboard-table">
-				<thead>
-					<tr>
-						<th>ERF Number</th>
-						<th>Designation</th>
-						<th>Gender</th>
-						<th>PR Count</th>
-						<th>Joined Without PR</th>
-						<th>ERF Count</th>
-						<th>Awaiting response (Overseas)</th>
-						<th>Awaiting response (Local)</th>
-						<th>Accepted with Visa</th>
-						<th>Accepted awaiting Visa</th>
-						<th>Local Hire Accepted</th>
-						<th class="highlight-col">Remaining</th>
-						<th>Planned Numbers</th>
-						<th>Planning Check</th>
-					</tr>
-				</thead>
-				<tbody class="dashboard-rows">
-				</tbody>
-			</table>
-		</div>
 	`;
 	$container.html(structureHtml);
-
-	const $rows = $container.find(".dashboard-rows");
-	data.forEach(item => {
-		const erf = esc(item.erf_number);
-		const design = esc(item.designation);
-
-		// Render Total Row (Master Row)
-		const totalRowHtml = `
-			<tr class="erf-row" data-erf="${erf}" data-designation="${design.toLowerCase()}">
-				<td><span class="expand-icon"></span>${erf}</td>
-				<td>${design}</td>
-				<td><span class="gender-badge">Total</span></td>
-				<td>${item.total.pr_count}</td>
-				<td>${item.total.joined_without_pr}</td>
-				<td>${item.total.erf_count}</td>
-				<td>${item.total.awaiting_response_overseas}</td>
-				<td>${item.total.awaiting_response_local}</td>
-				<td>${item.total.accepted_with_visa}</td>
-				<td>${item.total.accepted_awaiting_visa}</td>
-				<td>${item.total.local_hire}</td>
-				<td class="highlight-col">${item.total.remaining}</td>
-				<td>${item.total.planned}</td>
-				<td><span class="status-badge ${item.total.status_class}">${esc(item.total.planning_check)}</span></td>
-			</tr>
-		`;
-		$rows.append(totalRowHtml);
-
-		// Render Male Row (Child Row)
-		const maleRowHtml = `
-			<tr class="gender-row male-row" data-erf="${erf}" data-parent-erf="${erf}">
-				<td></td>
-				<td></td>
-				<td><span class="gender-badge gender-male">♂️ Male</span></td>
-				<td>${item.male.pr_count}</td>
-				<td>${item.male.joined_without_pr}</td>
-				<td>${item.male.erf_count}</td>
-				<td>${item.male.awaiting_response_overseas}</td>
-				<td>${item.male.awaiting_response_local}</td>
-				<td>${item.male.accepted_with_visa}</td>
-				<td>${item.male.accepted_awaiting_visa}</td>
-				<td>${item.male.local_hire}</td>
-				<td class="highlight-col">${item.male.remaining}</td>
-				<td>${item.male.planned}</td>
-				<td><span class="status-badge ${item.male.status_class}">${esc(item.male.planning_check)}</span></td>
-			</tr>
-		`;
-		$rows.append(maleRowHtml);
-
-		// Render Female Row (Child Row)
-		const femaleRowHtml = `
-			<tr class="gender-row female-row" data-erf="${erf}" data-parent-erf="${erf}">
-				<td></td>
-				<td></td>
-				<td><span class="gender-badge gender-female">♀️ Female</span></td>
-				<td>${item.female.pr_count}</td>
-				<td>${item.female.joined_without_pr}</td>
-				<td>${item.female.erf_count}</td>
-				<td>${item.female.awaiting_response_overseas}</td>
-				<td>${item.female.awaiting_response_local}</td>
-				<td>${item.female.accepted_with_visa}</td>
-				<td>${item.female.accepted_awaiting_visa}</td>
-				<td>${item.female.local_hire}</td>
-				<td class="highlight-col">${item.female.remaining}</td>
-				<td>${item.female.planned}</td>
-				<td><span class="status-badge ${item.female.status_class}">${esc(item.female.planning_check)}</span></td>
-			</tr>
-		`;
-		$rows.append(femaleRowHtml);
-	});
-
-	// Collapse/expand handler
-	$container.on("click", ".erf-row", function() {
-		const $row = $(this);
-		const erf = $row.attr("data-erf");
-		const isExpanded = $row.hasClass("expanded");
-
-		if (isExpanded) {
-			$row.removeClass("expanded");
-			$container.find(`.gender-row[data-parent-erf="${erf}"]`).removeClass("visible");
-		} else {
-			$row.addClass("expanded");
-			$container.find(`.gender-row[data-parent-erf="${erf}"]`).addClass("visible");
-		}
-	});
 }
 
 function applyFilters() {
@@ -255,7 +146,6 @@ function applyFilters() {
 
 	// Update components
 	updateKpiCards(filteredData);
-	updateTableVisibility(filteredData);
 }
 
 function updateKpiCards(filteredData) {
@@ -283,25 +173,6 @@ function updateKpiCards(filteredData) {
 	} else {
 		$remainingCard.addClass("accent-indigo");
 	}
-}
-
-function updateTableVisibility(filteredData) {
-	const visibleErfs = new Set(filteredData.map(item => item.erf_number));
-	$(".dashboard-rows .erf-row").each(function() {
-		const $row = $(this);
-		const erf = $row.attr("data-erf");
-		if (visibleErfs.has(erf)) {
-			$row.show();
-			if ($row.hasClass("expanded")) {
-				$(`.gender-row[data-parent-erf="${erf}"]`).addClass("visible");
-			} else {
-				$(`.gender-row[data-parent-erf="${erf}"]`).removeClass("visible");
-			}
-		} else {
-			$row.hide();
-			$(`.gender-row[data-parent-erf="${erf}"]`).removeClass("visible");
-		}
-	});
 }
 
 
