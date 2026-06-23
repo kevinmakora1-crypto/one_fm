@@ -23,8 +23,8 @@ class TestRecruitmentDashboard(FrappeTestCase):
 		
 		# PMRs in Process (Total 52: Male 51, Female 1)
 		mock_pmr = [
-			frappe._dict({"name": "PMR-001", "erf": "ERF-2026-00043", "designation": "Security Guard", "gender": "Male", "count": 51}),
-			frappe._dict({"name": "PMR-002", "erf": "ERF-2026-00043", "designation": "Security Guard", "gender": "Female", "count": 1})
+			frappe._dict({"name": "PMR-001", "erf": "ERF-2026-00043", "designation": "Security Guard", "gender": "Male", "count": 51, "number_to_hire": 51}),
+			frappe._dict({"name": "PMR-002", "erf": "ERF-2026-00043", "designation": "Security Guard", "gender": "Female", "count": 1, "number_to_hire": 1})
 		]
 
 		# PMR Linked Candidates

@@ -46,7 +46,7 @@ def get_dashboard_data():
 	pmrs = frappe.get_all(
 		"Project Manpower Request",
 		filters={"workflow_state": "In Process"},
-		fields=["name", "designation", "gender", "count"]
+		fields=["name", "designation", "gender", "number_to_hire"]
 	)
 
 	# 2. Get PMRs and Candidates Linked to Completed PMRs
@@ -165,7 +165,7 @@ def get_dashboard_data():
 		if pmr.designation and pmr.designation in designation_to_erf:
 			erf = designation_to_erf[pmr.designation]
 			gender = pmr.gender or "Any"
-			count = pmr.count or 0
+			count = pmr.number_to_hire or 0
 			
 			data[erf]["Total"]["pr_count"] += count
 			if gender in ["Male", "Female"]:
