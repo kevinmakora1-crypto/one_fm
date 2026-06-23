@@ -104,10 +104,6 @@ function renderStructure($container, data) {
 
 	const structureHtml = `
 		<div class="dashboard-summary-grid">
-			<div class="summary-card accent-indigo">
-				<div class="summary-card-title">Total Active ERFs</div>
-				<div class="summary-card-value kpi-active-erfs">0</div>
-			</div>
 			<div class="summary-card accent-amber">
 				<div class="summary-card-title">Net Requirement (ERF Count)</div>
 				<div class="summary-card-value kpi-net-requirement">0</div>
@@ -259,7 +255,6 @@ function applyFilters() {
 }
 
 function updateKpiCards(filteredData) {
-	let totalErfs = filteredData.length;
 	let activeRequirements = 0;
 	let totalPlanned = 0;
 	let remainingGap = 0;
@@ -270,7 +265,6 @@ function updateKpiCards(filteredData) {
 		remainingGap += (item.total.remaining || 0);
 	});
 
-	$(".kpi-active-erfs").text(totalErfs);
 	$(".kpi-net-requirement").text(activeRequirements);
 	$(".kpi-total-planned").text(totalPlanned);
 	$(".kpi-remaining-gap").text(remainingGap);
