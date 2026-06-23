@@ -48,7 +48,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Reports",
-   "link_count": 1,
+   "link_count": 2,
    "onboard": 0,
    "type": "Card Break"
   },
@@ -59,6 +59,16 @@
    "link_count": 0,
    "link_to": "Recruitment Analytics",
    "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Recruitment Dashboard Master",
+   "link_count": 0,
+   "link_to": "recruitment_dashboard_master",
+   "link_type": "Page",
    "onboard": 0,
    "type": "Link"
   },
