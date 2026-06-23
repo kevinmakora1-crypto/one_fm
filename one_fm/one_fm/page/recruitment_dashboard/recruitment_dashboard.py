@@ -9,46 +9,75 @@ from frappe import _
 def get_dashboard_data():
 	"""Fetch and aggregate recruitment metrics grouped by ERF and Gender."""
 	# Validate permissions
-	allowed_roles = ["System Manager", "HR Manager", "HR User", "Recruiter", "Senior Recruiter"]
+	allowed_roles = [
+		"System Manager", 
+		"HR Manager", 
+		"HR User", 
+		"Recruiter", 
+		"Senior Recruiter", 
+		"Recruitment Team Leader",
+		"Recruitment Team Lead",
+		"Interviewer",
+		"Administrator"
+	]
 	if not any(role in frappe.get_roles() for role in allowed_roles):
 		frappe.throw(_("Not permitted to access Recruitment Dashboard."), frappe.PermissionError)
 
-	# Fetch all active ERFs
-	erfs = frappe.get_all("ERF", filters={"docstatus": 1, "status": "Accepted"}, fields=["name", "designation"])
+	# Fetch active ERFs (docstatus=1, status in Open/Accepted)
+	erfs = frappe.get_all(
+		"ERF",
+		filters={"docstatus": 1, "status": ["in", ["Accepted", "Open"]]},
+		fields=["name", "designation"]
+	)
 	
 	erf_designations = {erf.name: erf.designation for erf in erfs}
+	designation_to_erf = {}
+	for erf in erfs:
+		if erf.designation:
+			designation_to_erf[erf.designation] = erf.name
+			
 	erf_names = list(erf_designations.keys())
 	
 	if not erf_names:
 		return []
 
-	# 1. Fetch PMR Count: PMR counts for In Process PMRs linked to our ERFs
+	# 1. Fetch PMR Count: PMR counts for In Process PMRs.
+	# The user requested: "Total number of PMR PER DESIGNATION AS AN ERF VALUE.. ONLY THOSE PRS IN PROCESS"
 	pmrs = frappe.get_all(
 		"Project Manpower Request",
-		filters={"erf": ["in", erf_names], "workflow_state": "In Process"},
-		fields=["name", "erf", "gender", "count"]
+		filters={"workflow_state": "In Process"},
+		fields=["name", "designation", "gender", "count"]
 	)
 
-	# 2. Fetch PMR Linked Candidates to find linked candidates
-	linked_candidates = frappe.get_all(
-		"PMR Linked Candidate",
-		filters={"parenttype": "Project Manpower Request"},
-		fields=["parent", "job_applicant"]
+	# 2. Get PMRs and Candidates Linked to Completed PMRs
+	# This is to compute "Joined Without PR": candidates who joined in CCP, but have not closed any PMR.
+	completed_pmrs = frappe.get_all(
+		"Project Manpower Request",
+		filters={"workflow_state": "Completed"},
+		fields=["name"]
 	)
-	linked_applicants_set = {lc.job_applicant for lc in linked_candidates if lc.job_applicant}
+	completed_pmr_names = [cp.name for cp in completed_pmrs]
+	completed_applicants_set = set()
+	if completed_pmr_names:
+		linked_to_completed = frappe.get_all(
+			"PMR Linked Candidate",
+			filters={"parenttype": "Project Manpower Request", "parent": ["in", completed_pmr_names]},
+			fields=["job_applicant"]
+		)
+		completed_applicants_set = {lc.job_applicant for lc in linked_to_completed if lc.job_applicant}
 
-	# 3. Fetch CCPs: In Process and Joined CCPs linked to our ERFs
+	# 3. Fetch CCPs: In Process and Joined CCPs
 	ccps = frappe.get_all(
 		"Candidate Country Process",
-		filters={"erf": ["in", erf_names], "status": ["in", ["In Process", "Joined"]]},
+		filters={"status": ["in", ["In Process", "Joined"]]},
 		fields=["name", "erf", "status", "job_applicant", "job_offer"]
 	)
 
-	# 4. Fetch Job Offers: Awaiting Response and Accepted Job Offers linked to our ERFs
+	# 4. Fetch Job Offers: Awaiting Response and Accepted Job Offers linked to our active ERFs
 	job_offers = frappe.get_all(
 		"Job Offer",
 		filters={"one_fm_erf": ["in", erf_names], "status": ["in", ["Awaiting Response", "Accepted"]], "docstatus": 1},
-		fields=["name", "one_fm_erf", "status", "job_applicant"]
+		fields=["name", "one_fm_erf", "designation", "status", "job_applicant"]
 	)
 
 	# 5. Fetch PAM Visas & Visa Stampings to verify completed visas
@@ -123,26 +152,37 @@ def get_dashboard_data():
 				"status_class": ""
 			}
 
-	# Aggregate PMRs
+	# Aggregate PMRs by designation
+	# "Total number of PMR PER DESIGNATION AS AN ERF VALUE.. ONLY THOSE PRS IN PROCESS"
 	for pmr in pmrs:
-		erf = pmr.erf
-		gender = pmr.gender or "Any"
-		count = pmr.count or 0
-		
-		data[erf]["Total"]["pr_count"] += count
-		if gender in ["Male", "Female"]:
-			data[erf][gender]["pr_count"] += count
+		if pmr.designation and pmr.designation in designation_to_erf:
+			erf = designation_to_erf[pmr.designation]
+			gender = pmr.gender or "Any"
+			count = pmr.count or 0
+			
+			data[erf]["Total"]["pr_count"] += count
+			if gender in ["Male", "Female"]:
+				data[erf][gender]["pr_count"] += count
 
 	# Aggregate Joined Without PR
+	# "CANDIDATES WHO HAVE JOINED IN CCP , BUT HAVE NOT CLOSED ANY PMR"
 	for ccp in ccps:
 		if ccp.status == "Joined":
+			# Identify ERF (either ccp.erf or look up via designation in job_offer)
 			erf = ccp.erf
 			if not erf or erf not in data:
+				# Try looking up via job offer designation
+				if ccp.job_offer:
+					jo_designation = frappe.db.get_value("Job Offer", ccp.job_offer, "designation")
+					if jo_designation and jo_designation in designation_to_erf:
+						erf = designation_to_erf[jo_designation]
+			if not erf or erf not in data:
 				continue
+
 			app_info = get_applicant_info(ccp.job_applicant)
-			is_linked = ccp.job_applicant in linked_applicants_set
+			is_linked_to_completed_pmr = ccp.job_applicant in completed_applicants_set
 			
-			if not is_linked:
+			if not is_linked_to_completed_pmr:
 				gender = app_info["gender"]
 				data[erf]["Total"]["joined_without_pr"] += 1
 				if gender in ["Male", "Female"]:
@@ -155,10 +195,17 @@ def get_dashboard_data():
 			row["erf_count"] = row["pr_count"] - row["joined_without_pr"]
 
 	# Aggregate Job Offers Awaiting Response and Local Hires Accepted
+	# "Job offers awaiting response for the same designation and erf in job offer"
 	for offer in job_offers:
 		erf = offer.one_fm_erf
 		if not erf or erf not in data:
 			continue
+		
+		# Verify same designation
+		erf_designation = erf_designations[erf]
+		if offer.designation != erf_designation:
+			continue
+
 		app_info = get_applicant_info(offer.job_applicant)
 		gender = app_info["gender"]
 		is_local = app_info["is_local"]
@@ -178,11 +225,19 @@ def get_dashboard_data():
 				data[erf][gender]["local_hire"] += 1
 
 	# Aggregate CCP Visa metrics
+	# "Candidates who are having visa where in their visa doctype the status is completed... this is only for candidates in ccp whoSE STatus is In process"
 	for ccp in ccps:
 		if ccp.status == "In Process":
 			erf = ccp.erf
 			if not erf or erf not in data:
+				# Try looking up via job offer designation
+				if ccp.job_offer:
+					jo_designation = frappe.db.get_value("Job Offer", ccp.job_offer, "designation")
+					if jo_designation and jo_designation in designation_to_erf:
+						erf = designation_to_erf[jo_designation]
+			if not erf or erf not in data:
 				continue
+
 			app_info = get_applicant_info(ccp.job_applicant)
 			gender = app_info["gender"]
 			is_local = app_info["is_local"]
@@ -223,34 +278,26 @@ def get_dashboard_data():
 		if gender in ["Male", "Female"]:
 			data[erf][gender]["planned"] += planned
 
-	# Compute Planning Check and Status Class
+	# Compute Planning Check and Status Class based on remaining adjusted by planned
 	for erf in data:
 		for gender in data[erf]:
 			row = data[erf][gender]
 			r = row["remaining"]
 			p = row["planned"]
-
-			if r < 0:
+			
+			diff = r - p
+			if diff < 0:
 				row["planning_check"] = "OK (Overhired)"
 				row["status_class"] = "status-grey"
-			elif r == 0:
-				if p == 0:
-					row["planning_check"] = "OK (Planned 0)"
-					row["status_class"] = "status-green"
+			elif diff == 0:
+				if p > 0:
+					row["planning_check"] = f"OK (Planned {p})"
 				else:
-					row["planning_check"] = f"OK [Planned 0 + Buffer is {p}]"
-					row["status_class"] = "status-green"
-			else: # r > 0
-				if p >= r:
-					buffer = p - r
-					if buffer == 0:
-						row["planning_check"] = f"OK (Planned {r})"
-					else:
-						row["planning_check"] = f"OK [Planned {r} + Buffer is {buffer}]"
-					row["status_class"] = "status-green"
-				else: # p < r
-					row["planning_check"] = "Plan Interviews"
-					row["status_class"] = "status-red"
+					row["planning_check"] = "OK"
+				row["status_class"] = "status-green"
+			else: # diff > 0
+				row["planning_check"] = "Plan Interviews"
+				row["status_class"] = "status-red"
 
 	# Format output
 	output = []
@@ -265,3 +312,4 @@ def get_dashboard_data():
 		output.append(erf_data)
 
 	return output
+
