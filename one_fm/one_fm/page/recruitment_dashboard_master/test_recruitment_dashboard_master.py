@@ -55,10 +55,10 @@ class TestRecruitmentDashboard(FrappeTestCase):
 
 		# Job Applicants details
 		mock_applicants = [
-			frappe._dict({"name": "JA-001", "gender": "Male", "one_fm_applicant_is_overseas_or_local": "Overseas"}),
-			frappe._dict({"name": "JA-002", "gender": "Male", "one_fm_applicant_is_overseas_or_local": "Overseas"}),
-			frappe._dict({"name": "JA-003", "gender": "Male", "one_fm_applicant_is_overseas_or_local": "Overseas"}),
-			frappe._dict({"name": "JA-004", "gender": "Male", "one_fm_applicant_is_overseas_or_local": "Overseas"})
+			frappe._dict({"name": "JA-001", "one_fm_gender": "Male", "one_fm_applicant_is_overseas_or_local": "Overseas"}),
+			frappe._dict({"name": "JA-002", "one_fm_gender": "Male", "one_fm_applicant_is_overseas_or_local": "Overseas"}),
+			frappe._dict({"name": "JA-003", "one_fm_gender": "Male", "one_fm_applicant_is_overseas_or_local": "Overseas"}),
+			frappe._dict({"name": "JA-004", "one_fm_gender": "Male", "one_fm_applicant_is_overseas_or_local": "Overseas"})
 		]
 
 		mock_rec_plans = []

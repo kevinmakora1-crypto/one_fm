@@ -111,11 +111,11 @@ def get_dashboard_data():
 		applicants = frappe.get_all(
 			"Job Applicant",
 			filters={"name": ["in", list(referenced_applicants)]},
-			fields=["name", "gender", "one_fm_applicant_is_overseas_or_local"]
+			fields=["name", "one_fm_gender", "one_fm_applicant_is_overseas_or_local"]
 		)
 		for app in applicants:
 			applicant_details[app.name] = {
-				"gender": app.gender or "Any",
+				"gender": app.one_fm_gender or "Any",
 				"is_local": app.one_fm_applicant_is_overseas_or_local == "Local"
 			}
 
