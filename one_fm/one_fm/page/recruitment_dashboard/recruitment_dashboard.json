@@ -1,0 +1,36 @@
+{
+ "actions": [],
+ "creation": "2026-06-23 15:50:00",
+ "docstatus": 0,
+ "doctype": "Page",
+ "icon": "fa fa-dashboard",
+ "idx": 0,
+ "modified": "2026-06-23 15:50:00",
+ "modified_by": "Administrator",
+ "module": "One Fm",
+ "name": "recruitment_dashboard",
+ "owner": "Administrator",
+ "page_name": "recruitment_dashboard",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "HR Manager"
+  },
+  {
+   "role": "HR User"
+  },
+  {
+   "role": "Recruiter"
+  },
+  {
+   "role": "Senior Recruiter"
+  }
+ ],
+ "script": null,
+ "standard": "Yes",
+ "style": null,
+ "system_page": 0,
+ "title": "Recruitment Dashboard"
+}
