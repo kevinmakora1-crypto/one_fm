@@ -97,7 +97,7 @@ def get_dashboard_data():
 
 	completed_visa_ccps = approved_pam_visas.union(stamped_visas)
 
-	# 6. Fetch Job Applicants (to get gender and local/overseas category)
+	# 6. Fetch Job Applicants (to get gender, local/overseas category, nationality, and source)
 	referenced_applicants = set()
 	for ccp in ccps:
 		if ccp.job_applicant:
@@ -111,16 +111,21 @@ def get_dashboard_data():
 		applicants = frappe.get_all(
 			"Job Applicant",
 			filters={"name": ["in", list(referenced_applicants)]},
-			fields=["name", "one_fm_gender", "one_fm_applicant_is_overseas_or_local"]
+			fields=["name", "one_fm_gender", "one_fm_applicant_is_overseas_or_local", "one_fm_nationality", "source"]
 		)
 		for app in applicants:
 			applicant_details[app.name] = {
 				"gender": app.one_fm_gender or "Any",
-				"is_local": app.one_fm_applicant_is_overseas_or_local == "Local"
+				"is_local": app.one_fm_applicant_is_overseas_or_local == "Local",
+				"nationality": app.one_fm_nationality or "Unknown",
+				"source": app.source or "Direct"
 			}
 
 	def get_applicant_info(applicant_name):
-		return applicant_details.get(applicant_name, {"gender": "Any", "is_local": False})
+		return applicant_details.get(
+			applicant_name, 
+			{"gender": "Any", "is_local": False, "nationality": "Unknown", "source": "Direct"}
+		)
 
 	# 7. Fetch Recruitment Plans (Planned Numbers)
 	rec_plans = frappe.get_all(
@@ -149,7 +154,9 @@ def get_dashboard_data():
 				"remaining": 0,
 				"planned": 0,
 				"planning_check": "",
-				"status_class": ""
+				"status_class": "",
+				"nationalities": {},
+				"sources": {}
 			}
 
 	# Aggregate PMRs by designation
@@ -188,6 +195,19 @@ def get_dashboard_data():
 				if gender in ["Male", "Female"]:
 					data[erf][gender]["joined_without_pr"] += 1
 
+			# Demographics aggregation
+			nationality = app_info["nationality"]
+			source = app_info["source"]
+			gender = app_info["gender"]
+			
+			row_total = data[erf]["Total"]
+			row_total["nationalities"][nationality] = row_total["nationalities"].get(nationality, 0) + 1
+			row_total["sources"][source] = row_total["sources"].get(source, 0) + 1
+			if gender in ["Male", "Female"]:
+				row_gender = data[erf][gender]
+				row_gender["nationalities"][nationality] = row_gender["nationalities"].get(nationality, 0) + 1
+				row_gender["sources"][source] = row_gender["sources"].get(source, 0) + 1
+
 	# Compute ERF Count
 	for erf in data:
 		for gender in data[erf]:
@@ -209,6 +229,8 @@ def get_dashboard_data():
 		app_info = get_applicant_info(offer.job_applicant)
 		gender = app_info["gender"]
 		is_local = app_info["is_local"]
+		nationality = app_info["nationality"]
+		source = app_info["source"]
 
 		if offer.status == "Awaiting Response":
 			if is_local:
@@ -223,6 +245,15 @@ def get_dashboard_data():
 			data[erf]["Total"]["local_hire"] += 1
 			if gender in ["Male", "Female"]:
 				data[erf][gender]["local_hire"] += 1
+
+		# Demographics aggregation
+		row_total = data[erf]["Total"]
+		row_total["nationalities"][nationality] = row_total["nationalities"].get(nationality, 0) + 1
+		row_total["sources"][source] = row_total["sources"].get(source, 0) + 1
+		if gender in ["Male", "Female"]:
+			row_gender = data[erf][gender]
+			row_gender["nationalities"][nationality] = row_gender["nationalities"].get(nationality, 0) + 1
+			row_gender["sources"][source] = row_gender["sources"].get(source, 0) + 1
 
 	# Aggregate CCP Visa metrics
 	# "Candidates who are having visa where in their visa doctype the status is completed... this is only for candidates in ccp whoSE STatus is In process"
@@ -241,6 +272,8 @@ def get_dashboard_data():
 			app_info = get_applicant_info(ccp.job_applicant)
 			gender = app_info["gender"]
 			is_local = app_info["is_local"]
+			nationality = app_info["nationality"]
+			source = app_info["source"]
 
 			if not is_local:
 				has_visa = ccp.name in completed_visa_ccps
@@ -252,6 +285,15 @@ def get_dashboard_data():
 					data[erf]["Total"]["accepted_awaiting_visa"] += 1
 					if gender in ["Male", "Female"]:
 						data[erf][gender]["accepted_awaiting_visa"] += 1
+
+			# Demographics aggregation
+			row_total = data[erf]["Total"]
+			row_total["nationalities"][nationality] = row_total["nationalities"].get(nationality, 0) + 1
+			row_total["sources"][source] = row_total["sources"].get(source, 0) + 1
+			if gender in ["Male", "Female"]:
+				row_gender = data[erf][gender]
+				row_gender["nationalities"][nationality] = row_gender["nationalities"].get(nationality, 0) + 1
+				row_gender["sources"][source] = row_gender["sources"].get(source, 0) + 1
 
 	# Compute Remaining Requirement
 	for erf in data:
