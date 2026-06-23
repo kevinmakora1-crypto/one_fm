@@ -66,11 +66,14 @@ function fetchAndRender(page, wrapper) {
 			if (r.message && !r.message.error) {
 				dashboardData = r.message;
 
-				// Populate the ERF filter dropdown
+				// Populate the ERF filter dropdown with only "In Process" ERFs and append designation
 				let erfs = ["All"];
 				r.message.forEach(item => {
-					if (item.erf_number && !erfs.includes(item.erf_number)) {
-						erfs.push(item.erf_number);
+					if (item.erf_number && item.total && (item.total.pr_count > 0)) {
+						const optionText = `${item.erf_number} - ${item.designation || ""}`;
+						if (!erfs.includes(optionText)) {
+							erfs.push(optionText);
+						}
 					}
 				});
 				page.fields_dict.erf_filter.df.options = erfs.join("\n");
@@ -133,7 +136,8 @@ function applyFilters() {
 
 	// 1. ERF Filter dropdown
 	if (erfVal && erfVal !== "All") {
-		filteredData = filteredData.filter(item => item.erf_number === erfVal);
+		const selectedErf = erfVal.split(" - ")[0];
+		filteredData = filteredData.filter(item => item.erf_number === selectedErf);
 	}
 
 	// 2. Search box filter
