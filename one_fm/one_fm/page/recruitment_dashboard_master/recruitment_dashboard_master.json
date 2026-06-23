@@ -8,9 +8,9 @@
  "modified": "2026-06-23 15:50:00",
  "modified_by": "Administrator",
  "module": "One Fm",
- "name": "recruitment_dashboard",
+ "name": "recruitment_dashboard_master",
  "owner": "Administrator",
- "page_name": "recruitment_dashboard",
+ "page_name": "recruitment_dashboard_master",
  "roles": [
   {
    "role": "System Manager"
@@ -44,5 +44,5 @@
  "standard": "Yes",
  "style": null,
  "system_page": 0,
- "title": "Recruitment Dashboard"
+ "title": "Recruitment Dashboard Master"
 }

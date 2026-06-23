@@ -1,7 +1,7 @@
-frappe.pages["recruitment_dashboard"].on_page_load = function(wrapper) {
+frappe.pages["recruitment_dashboard_master"].on_page_load = function(wrapper) {
 	let page = frappe.ui.make_app_page({
 		parent: wrapper,
-		title: "Recruitment Dashboard",
+		title: "Recruitment Dashboard Master",
 		single_column: true
 	});
 
@@ -38,7 +38,7 @@ function fetchAndRender(page, wrapper) {
 	$dashboard_area.html('<div class="text-muted p-5 text-center">Loading recruitment dashboard metrics...</div>');
 
 	frappe.call({
-		method: "one_fm.one_fm.page.recruitment_dashboard.recruitment_dashboard.get_dashboard_data",
+		method: "one_fm.one_fm.page.recruitment_dashboard_master.recruitment_dashboard_master.get_dashboard_data",
 		callback: function(r) {
 			$dashboard_area.empty();
 			if (r.message && !r.message.error) {

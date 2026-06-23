@@ -5,7 +5,7 @@
 import frappe
 from frappe.tests.utils import FrappeTestCase
 from unittest.mock import patch
-from one_fm.one_fm.page.recruitment_dashboard.recruitment_dashboard import get_dashboard_data
+from one_fm.one_fm.page.recruitment_dashboard_master.recruitment_dashboard_master import get_dashboard_data
 
 class TestRecruitmentDashboard(FrappeTestCase):
 	@patch("frappe.get_roles")
